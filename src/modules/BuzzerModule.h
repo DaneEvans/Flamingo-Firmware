@@ -6,13 +6,13 @@
 #include <Arduino.h>
 #include <functional>
 
-#ifndef BUZZER_IO
+#ifndef FLAMINGO_BUZZER_IO
 #define BUZZER_PIN 21  
 #else
-#define BUZZER_PIN BUZZER_IO
+#define BUZZER_PIN FLAMINGO_BUZZER_IO
 #endif 
 
-#if BUZZER_LOWTRUE
+#if FLAMINGO_BUZZER_LOWTRUE
 #define BUZZER_ON LOW
 #define BUZZER_OFF HIGH
 #else

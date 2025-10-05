@@ -1,15 +1,17 @@
 #pragma once
 
+#ifdef FLAMINGO
+
 #include "SinglePortModule.h"
 #include "concurrency/OSThread.h"
 #include "configuration.h"
 #include <Arduino.h>
 #include <functional>
 
-#ifndef BLINKY_IO
+#ifndef FLAMINGO_BLINKY_IO
 #define BLINK_PIN 17  
 #else
-#define BLINK_PIN BLINKY_IO
+#define BLINK_PIN FLAMINGO_BLINKY_IO
 #endif 
 
 
@@ -39,3 +41,4 @@ class BlinkModule : private concurrency::OSThread
 };
 
 extern BlinkModule *blinkModule;
+#endif

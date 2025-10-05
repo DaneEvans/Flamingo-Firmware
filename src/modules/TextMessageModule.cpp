@@ -1,15 +1,20 @@
 #include "TextMessageModule.h"
 #include "MeshService.h"
+#ifdef FLAMINGO
 #include "MeshTypes.h"
+#endif
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "buzz.h"
 #include "configuration.h"
+#ifdef FLAMINGO
 #include "RangeTestModule.h"
+#endif
 
 #include "graphics/Screen.h"
 TextMessageModule *textMessageModule;
 
+#ifdef FLAMINGO
 #define MAX_ADMIN_MSG 31
 
 void parseAdmin(pb_size_t size, char* payload){
@@ -75,19 +80,20 @@ void parseAdmin(pb_size_t size, char* payload){
 char textmsg[201];
 #endif
 
+#endif
+
 
 ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp)
 {
+#ifdef FLAMINGO
+    /*
+     Improve debug messages so that can parsed as part of log at Incident Command
+    */
 #if defined(DEBUG_PORT) && !defined(DEBUG_MUTE)
     auto rssi = mp.rx_rssi;
     auto &p = mp.decoded;
-    //LOG_INFO("Received text msg from=0x%0x, id=0x%x, msg=%.*s", mp.from, mp.id, p.payload.size, p.payload.bytes);
     meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&mp));
-    /*
-    LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d, msg=%.*s",
-        mp.from, mp.id, n->user.long_name, mp.rx_snr, mp.hop_limit, mp.hop_start, p.payload.size, p.payload.bytes);
-    */
-
+    
     LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d",
         mp.from, mp.id, n->user.long_name, mp.rx_snr, mp.hop_limit, mp.hop_start);
     uint16_t offset;
@@ -113,7 +119,12 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         parseAdmin(p.payload.size, (char *)p.payload.bytes);
     }
 
-
+#endif
+#else
+#if defined(DEBUG_PORT) && !defined(DEBUG_MUTE)
+    auto &p = mp.decoded;
+    LOG_INFO("Received text msg from=0x%0x, id=0x%x, msg=%.*s", mp.from, mp.id, p.payload.size, p.payload.bytes);
+#endif
 #endif
     // We only store/display messages destined for us.
     // Keep a copy of the most recent text message.

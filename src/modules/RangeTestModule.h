@@ -6,6 +6,11 @@
 #include <Arduino.h>
 #include <functional>
 
+#ifdef FLAMINGO
+extern float RangeTestGetSnrAverage();
+extern bool RangeTestIsValidSnrAverage();
+#endif 
+
 class RangeTestModule : private concurrency::OSThread
 {
     bool firstTime = 1;
@@ -43,6 +48,11 @@ class RangeTestModuleRadio : public SinglePortModule
      * Append range test data to the file on the Filesystem
      */
     bool appendFile(const meshtastic_MeshPacket &mp);
+
+    /**
+     * Cleanup range test data from filesystem
+     */
+    bool removeFile();
 
   protected:
     /** Called to handle a particular incoming message

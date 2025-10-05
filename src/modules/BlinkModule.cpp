@@ -4,6 +4,8 @@
  *
  */
 
+ #ifdef FLAMINGO
+
 #include "Default.h"
 #include "BlinkModule.h"
 #include "FSCommon.h"
@@ -97,4 +99,5 @@ int32_t BlinkModule::runOnce()
     return(POLL_INTERVAL_MS);
 }
 
+#endif
 

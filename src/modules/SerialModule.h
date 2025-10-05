@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(USE_SLINK)
+#if defined(FLAMINGO) && defined(FLAMINGO_SLINK)
 
 #include "MeshModule.h"
 #include "Router.h"

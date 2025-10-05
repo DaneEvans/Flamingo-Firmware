@@ -895,7 +895,7 @@ void UIRenderer::drawIconScreen(const char *upperMsg, OLEDDisplay *display, OLED
 
     display->setFont(FONT_MEDIUM);
     display->setTextAlignment(TEXT_ALIGN_LEFT);
-#ifdef USERPREFS_SPLASH_TITLE
+#if defined(FLAMINGO) && defined(USERPREFS_SPLASH_TITLE)
     const char *title = USERPREFS_SPLASH_TITLE;
 #else
     const char *title = "meshtastic.org";

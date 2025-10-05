@@ -24,10 +24,12 @@
 #endif
 #endif
 
+#ifdef FLAMINGO
 extern void setRtDynamicEnable(uint8_t v);
 extern uint8_t getRtDynanmicEnable();
 extern void setRtHop(uint8_t v);
 extern uint8_t getRtHop();
+#endif
 
 extern Allocator<meshtastic_QueueStatus> &queueStatusPool;
 extern Allocator<meshtastic_MqttClientProxyMessage> &mqttClientProxyMessagePool;

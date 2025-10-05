@@ -15,15 +15,18 @@
 #if !MESHTASTIC_EXCLUDE_MQTT
 #include "mqtt/MQTT.h"
 #endif
-#if defined(USE_SLINK)
-#include "modules/SerialModule.h"
-#endif
 #include "Default.h"
 #if ARCH_PORTDUINO
 #include "platform/portduino/PortduinoGlue.h"
 #endif
 #if ENABLE_JSON_LOGGING || ARCH_PORTDUINO
 #include "serialization/MeshPacketSerializer.h"
+#endif
+#ifdef FLAMINGO
+#include "modules/RangeTestModule.h"
+#ifdef FLAMINGO_SLINK
+#include "modules/SerialModule.h"
+#endif
 #endif
 
 #define MAX_RX_FROMRADIO                                                                                                         \
@@ -49,8 +52,11 @@ Allocator<meshtastic_MeshPacket> &packetPool = dynamicPool;
 static MemoryPool<meshtastic_MeshPacket, MAX_PACKETS_STATIC> staticPool;
 Allocator<meshtastic_MeshPacket> &packetPool = staticPool;
 #endif
-
+#ifdef FLAMINGO
 static uint8_t bytes[MAX_LORA_PAYLOAD_LEN + 1] __attribute__((aligned(4)));
+#else
+static uint8_t bytes[MAX_LORA_PAYLOAD_LEN + 1] __attribute__((__aligned__));
+#endif
 
 /**
  * Constructor
@@ -309,7 +315,7 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
 #endif
         packetPool.release(p_decoded);
     }
-#if defined(USE_SLINK)
+#ifdef FLAMINGO_SLINK
     if (moduleConfig.serial.enabled){
         serialModuleRadio->onSend(*p);
     }
@@ -462,17 +468,27 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
             // Switch the port from PortNum_TEXT_MESSAGE_COMPRESSED_APP to PortNum_TEXT_MESSAGE_APP
             p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
         } */
+#ifdef FLAMINGO
         // Message is decrypted. Change range test payload
         if (isBroadcast(p->to)) {
             if ((p->decoded.payload.size > 4) && strncmp("seq ", (char *)p->decoded.payload.bytes, 4) == 0) {
                 // this is a range test packet. 
                 auto bp = (char *)p->decoded.payload.bytes + p->decoded.payload.size;
-                auto extra = sprintf(bp, " RSSI=%i SNR=%.2f", p->rx_rssi, p->rx_snr);
-                if (extra > 0){
-                    p->decoded.payload.size = p->decoded.payload.size + extra;
+                if (RangeTestIsValidSnrAverage()) {
+                    auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:%.2f", p->rx_rssi, p->rx_snr, RangeTestGetSnrAverage());
+                    if (extra > 0){
+                        p->decoded.payload.size = p->decoded.payload.size + extra;
+                    }
+                } else {
+                    auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:n/a", p->rx_rssi, p->rx_snr);
+                    if (extra > 0){
+                        p->decoded.payload.size = p->decoded.payload.size + extra;
+                    }
                 }
+
             }
         }
+#endif
 
         printPacket("decoded message", p);
 #if ENABLE_JSON_LOGGING
@@ -637,7 +653,7 @@ NodeNum Router::getNodeNum()
 void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
 {
     bool skipHandle = false;
-#if SLINK_DEBUG
+#if defined(FLAMINGO) && defined(FLAMINGO_SLINK_DEBUG)
     LOG_DEBUG("In Router::handleReceived");
 #endif
     // Also, we should set the time from the ISR and it should have msec level resolution

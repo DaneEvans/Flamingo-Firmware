@@ -659,7 +659,7 @@ bool PhoneAPI::wasSeenRecently(uint32_t id)
     return false;
 }
 
-#ifdef DEBUG_PORT
+#if defined(FLAMINGO) && defined(DEBUG_PORT)
 char phonemsg[201];
 #endif
 
@@ -670,7 +670,7 @@ bool PhoneAPI::handleToRadioPacket(meshtastic_MeshPacket &p)
 {
     printPacket("PACKET FROM PHONE", &p);
 
-#ifdef DEBUG_PORT
+#if defined(FLAMINGO) && defined(DEBUG_PORT)
     auto &pp = p.decoded;
     meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&p));
     /*

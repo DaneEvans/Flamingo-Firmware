@@ -1,4 +1,4 @@
-#if defined(USE_SLINK)
+#if defined(FLAMINGO) && defined(FLAMINGO_SLINK)
 
 #include "SerialModule.h"
 #include "GeoCoord.h"

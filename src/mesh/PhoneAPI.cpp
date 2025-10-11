@@ -664,12 +664,46 @@ bool PhoneAPI::wasSeenRecently(uint32_t id)
     return false;
 }
 
+#ifdef DEBUG_PORT
+char phonemsg[201];
+#endif
+
 /**
  * Handle a packet that the phone wants us to send.  It is our responsibility to free the packet to the pool
  */
 bool PhoneAPI::handleToRadioPacket(meshtastic_MeshPacket &p)
 {
     printPacket("PACKET FROM PHONE", &p);
+
+#ifdef DEBUG_PORT
+    auto &pp = p.decoded;
+    meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&p));
+    /*
+    LOG_INFO("PhoneApi msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d, msg=%.*s",
+        p.from, p.id, n->user.long_name, p.rx_snr, p.hop_limit, p.hop_start, pp.payload.size, pp.payload.bytes);
+    */
+    LOG_INFO("PhoneApi msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d",
+        p.from, p.id, n->user.long_name, p.rx_snr, p.hop_limit, p.hop_start);
+    uint16_t offset;
+    uint16_t bytes_left = pp.payload.size;
+    bool do_loop = 1;
+    offset = 0;
+    /* apparently, the maximum size log message is about 150 characters. Deal this with this*/
+    while (do_loop) {
+        if (bytes_left <= 150) {
+            memset(phonemsg, 0, sizeof(phonemsg));
+            strncpy(phonemsg, (char *)(pp.payload.bytes+offset), bytes_left);
+            do_loop = 0;
+        } else {
+            memset(phonemsg, 0, sizeof(phonemsg));
+            strncpy(phonemsg, (char *)(pp.payload.bytes+offset), 150);
+            offset = offset + 150;
+            bytes_left = bytes_left-150;
+        }
+        LOG_INFO("z=%s",phonemsg);
+    }
+
+#endif
 
 #if defined(ARCH_PORTDUINO)
     // For use with the simulator, we should not ignore duplicate packets from the phone

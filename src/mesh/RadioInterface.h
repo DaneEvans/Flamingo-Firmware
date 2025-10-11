@@ -10,14 +10,22 @@
 #define MAX_TX_QUEUE 16 // max number of packets which can be waiting for transmission
 
 #define MAX_LORA_PAYLOAD_LEN 255 // max length of 255 per Semtech's datasheets on SX12xx
-#define MESHTASTIC_HEADER_LENGTH 16
+#define MESHTASTIC_HEADER_LENGTH 20
 #define MESHTASTIC_PKC_OVERHEAD 12
 
-#define PACKET_FLAGS_HOP_LIMIT_MASK 0x07
+// Old packet header flags
+//#define PACKET_FLAGS_HOP_LIMIT_MASK 0x07
+//#define PACKET_FLAGS_WANT_ACK_MASK 0x08
+//#define PACKET_FLAGS_VIA_MQTT_MASK 0x10
+//#define PACKET_FLAGS_HOP_START_MASK 0xE0
+//#define PACKET_FLAGS_HOP_START_SHIFT 5
+
+// New packet header flags
 #define PACKET_FLAGS_WANT_ACK_MASK 0x08
 #define PACKET_FLAGS_VIA_MQTT_MASK 0x10
-#define PACKET_FLAGS_HOP_START_MASK 0xE0
-#define PACKET_FLAGS_HOP_START_SHIFT 5
+#define PACKET_FLAGS_HOP_LIMIT_MASK HOP_MAX
+#define PACKET_FLAGS_HOP_START_MASK HOP_MAX
+#define PACKET_HEADER_MAGIC_NUMBER 0xA5C3
 
 /**
  * This structure has to exactly match the wire layout when sent over the radio link.  Used to keep compatibility
@@ -43,6 +51,17 @@ typedef struct {
 
     // Last byte of the NodeNum of the node that will relay/relayed this packet
     uint8_t relay_node;
+
+    uint8_t hop_limit;   // new place for hop_limit
+
+    uint8_t hop_start;   // new place for hop_start
+
+    /**  
+    * a magicnum so that we quickly detect incompatible packets
+    * and discard without wasting cycles decoding
+    **/
+
+    uint16_t magicnum;   
 } PacketHeader;
 
 /**
@@ -54,8 +73,10 @@ typedef struct {
     /** The header, as defined just before */
     PacketHeader header;
 
-    /** The payload, of maximum length minus the header, aligned just to be sure */
-    uint8_t payload[MAX_LORA_PAYLOAD_LEN + 1 - sizeof(PacketHeader)] __attribute__((__aligned__));
+     /** The payload, of maximum length minus the header, aligned just to be sure 
+     * This only needs to be aligned on a four byte boundary.  Must be four bytes for new header to work correctly.
+    */
+    uint8_t payload[MAX_LORA_PAYLOAD_LEN + 1 - sizeof(PacketHeader)] __attribute__((aligned(4)));
 
 } RadioBuffer;
 
@@ -101,8 +122,9 @@ class RadioInterface
 
     /**
      * A temporary buffer used for sending/receiving packets, sized to hold the biggest buffer we might need
+     * This only needs to be aligned on a four byte boundary. Must be four bytes for new header to work correctly.
      * */
-    RadioBuffer radioBuffer __attribute__((__aligned__));
+    RadioBuffer radioBuffer  __attribute__((aligned(4)));
     /**
      * Enqueue a received packet for the registered receiver
      */

@@ -143,6 +143,16 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         }
     }
 
+#ifdef FLAMINGO
+    // Use flooding router for Traceroute packets
+    if (p->which_payload_variant == meshtastic_MeshPacket_decoded_tag && p->decoded.portnum == meshtastic_PortNum_TRACEROUTE_APP) {
+        FloodingRouter::sniffReceived(p, c);
+    } else {
+        // handle the packet as normal
+        isBroadcast(p->to) ? FloodingRouter::sniffReceived(p, c) : NextHopRouter::sniffReceived(p, c);
+    }
+#else
     // handle the packet as normal
     isBroadcast(p->to) ? FloodingRouter::sniffReceived(p, c) : NextHopRouter::sniffReceived(p, c);
+#endif
 }

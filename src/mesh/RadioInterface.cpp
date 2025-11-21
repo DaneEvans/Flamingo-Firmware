@@ -393,7 +393,7 @@ void printPacket(const char *prefix, const meshtastic_MeshPacket *p)
 RadioInterface::RadioInterface()
 {
 #ifdef FLAMINGO
-    //assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
+    // assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
 #else
     assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
 #endif
@@ -686,7 +686,8 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
 
     // LOG_DEBUG("Send queued packet on mesh (txGood=%d,rxGood=%d,rxBad=%d)", rf95.txGood(), rf95.rxGood(), rf95.rxBad());
     assert(p->which_payload_variant == meshtastic_MeshPacket_encrypted_tag); // It should have already been encoded by now
-    LOG_DEBUG("TX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", p->from, p->to, p->id, p->channel, p->hop_start, p->hop_limit);
+    LOG_DEBUG("TX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", p->from, p->to, p->id, p->channel,
+              p->hop_start, p->hop_limit);
 
     radioBuffer.header.from = p->from;
     radioBuffer.header.to = p->to;

@@ -316,7 +316,7 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
         packetPool.release(p_decoded);
     }
 #ifdef FLAMINGO_SLINK
-    if (moduleConfig.serial.enabled){
+    if (moduleConfig.serial.enabled) {
         serialModuleRadio->onSend(*p);
     }
 #endif
@@ -449,43 +449,42 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
         if (p->decoded.has_bitfield)
             p->decoded.want_response |= p->decoded.bitfield & BITFIELD_WANT_RESPONSE_MASK;
 
-        /* Not actually ever used.
-        // Decompress if needed. jm
-        if (p->decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_COMPRESSED_APP) {
-            // Decompress the payload
-            char compressed_in[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
-            char decompressed_out[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
-            int decompressed_len;
+            /* Not actually ever used.
+            // Decompress if needed. jm
+            if (p->decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_COMPRESSED_APP) {
+                // Decompress the payload
+                char compressed_in[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
+                char decompressed_out[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
+                int decompressed_len;
 
-            memcpy(compressed_in, p->decoded.payload.bytes, p->decoded.payload.size);
+                memcpy(compressed_in, p->decoded.payload.bytes, p->decoded.payload.size);
 
-            decompressed_len = unishox2_decompress_simple(compressed_in, p->decoded.payload.size, decompressed_out);
+                decompressed_len = unishox2_decompress_simple(compressed_in, p->decoded.payload.size, decompressed_out);
 
-            // LOG_DEBUG("**Decompressed length - %d ", decompressed_len);
+                // LOG_DEBUG("**Decompressed length - %d ", decompressed_len);
 
-            memcpy(p->decoded.payload.bytes, decompressed_out, decompressed_len);
+                memcpy(p->decoded.payload.bytes, decompressed_out, decompressed_len);
 
-            // Switch the port from PortNum_TEXT_MESSAGE_COMPRESSED_APP to PortNum_TEXT_MESSAGE_APP
-            p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-        } */
+                // Switch the port from PortNum_TEXT_MESSAGE_COMPRESSED_APP to PortNum_TEXT_MESSAGE_APP
+                p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
+            } */
 #ifdef FLAMINGO
         // Message is decrypted. Change range test payload
         if (isBroadcast(p->to)) {
             if ((p->decoded.payload.size > 4) && strncmp("seq ", (char *)p->decoded.payload.bytes, 4) == 0) {
-                // this is a range test packet. 
+                // this is a range test packet.
                 auto bp = (char *)p->decoded.payload.bytes + p->decoded.payload.size;
                 if (RangeTestIsValidSnrAverage()) {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:%.2f", p->rx_rssi, p->rx_snr, RangeTestGetSnrAverage());
-                    if (extra > 0){
+                    if (extra > 0) {
                         p->decoded.payload.size = p->decoded.payload.size + extra;
                     }
                 } else {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:n/a", p->rx_rssi, p->rx_snr);
-                    if (extra > 0){
+                    if (extra > 0) {
                         p->decoded.payload.size = p->decoded.payload.size + extra;
                     }
                 }
-
             }
         }
 #endif

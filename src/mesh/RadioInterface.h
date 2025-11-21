@@ -31,7 +31,6 @@
 #define PACKET_FLAGS_HOP_START_SHIFT 5
 #endif
 
-
 /**
  * This structure has to exactly match the wire layout when sent over the radio link.  Used to keep compatibility
  * with the old radiohead implementation.
@@ -57,17 +56,17 @@ typedef struct {
     // Last byte of the NodeNum of the node that will relay/relayed this packet
     uint8_t relay_node;
 #ifdef FLAMINGO
-    uint8_t hop_limit;   // new place for hop_limit
+    uint8_t hop_limit; // new place for hop_limit
 
-    uint8_t hop_start;   // new place for hop_start
+    uint8_t hop_start; // new place for hop_start
 
-    /**  
-    * a magicnum so that we quickly detect incompatible packets
-    * and discard without wasting cycles decoding
-    **/
+    /**
+     * a magicnum so that we quickly detect incompatible packets
+     * and discard without wasting cycles decoding
+     **/
 
     uint16_t magicnum;
-#endif   
+#endif
 } PacketHeader;
 
 /**
@@ -80,13 +79,13 @@ typedef struct {
     PacketHeader header;
 
 #ifdef FLAMINGO
-     /** The payload, of maximum length minus the header, aligned just to be sure 
-     * This only needs to be aligned on a four byte boundary.  
+    /** The payload, of maximum length minus the header, aligned just to be sure
+     * This only needs to be aligned on a four byte boundary.
      * Must be four bytes for new header to work correctly.
-    */
+     */
     uint8_t payload[MAX_LORA_PAYLOAD_LEN + 1 - sizeof(PacketHeader)] __attribute__((aligned(4)));
 #else
-     /** The payload, of maximum length minus the header, aligned just to be sure */
+    /** The payload, of maximum length minus the header, aligned just to be sure */
     uint8_t payload[MAX_LORA_PAYLOAD_LEN + 1 - sizeof(PacketHeader)] __attribute__((__aligned__));
 #endif
 
@@ -138,7 +137,7 @@ class RadioInterface
      * A temporary buffer used for sending/receiving packets, sized to hold the biggest buffer we might need
      * This only needs to be aligned on a four byte boundary. Must be four bytes for new header to work correctly.
      * */
-    RadioBuffer radioBuffer  __attribute__((aligned(4)));
+    RadioBuffer radioBuffer __attribute__((aligned(4)));
 #else
     /**
      * A temporary buffer used for sending/receiving packets, sized to hold the biggest buffer we might need

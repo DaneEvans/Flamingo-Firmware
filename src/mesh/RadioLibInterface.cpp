@@ -461,9 +461,9 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->id = radioBuffer.header.id;
             mp->channel = radioBuffer.header.channel;
 #ifdef FLAMINGO
-            //assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
-            mp->hop_limit = radioBuffer.header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK ;
-            mp->hop_start = radioBuffer.header.hop_start & PACKET_FLAGS_HOP_START_MASK ;
+            // assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
+            mp->hop_limit = radioBuffer.header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK;
+            mp->hop_start = radioBuffer.header.hop_start & PACKET_FLAGS_HOP_START_MASK;
 #else
             assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
             mp->hop_limit = radioBuffer.header.flags & PACKET_FLAGS_HOP_LIMIT_MASK;
@@ -475,7 +475,8 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->next_hop = mp->hop_start == 0 ? NO_NEXT_HOP_PREFERENCE : radioBuffer.header.next_hop;
             mp->relay_node = mp->hop_start == 0 ? NO_RELAY_NODE : radioBuffer.header.relay_node;
 #ifdef FLAMINGO
-            LOG_DEBUG("RX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", mp->from, mp->to, mp->id, mp->channel, mp->hop_start, mp->hop_limit);
+            LOG_DEBUG("RX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", mp->from, mp->to, mp->id,
+                      mp->channel, mp->hop_start, mp->hop_limit);
 #endif
             addReceiveMetadata(mp);
 

@@ -63,6 +63,25 @@ Allocator<meshtastic_QueueStatus> &queueStatusPool = staticQueueStatusPool;
 
 #include "Router.h"
 
+int8_t rtDynamicEnabled = 0;  // if '1', then send range test packets if range test enabled
+int8_t rtHop = 0;  // If '1', then range test packets will hop
+
+uint8_t getRtDynanmicEnable() {
+    return rtDynamicEnabled;
+}
+
+void setRtDynamicEnable(uint8_t v){
+    rtDynamicEnabled = v;
+}
+
+uint8_t getRtHop() {
+    return rtHop;
+}
+
+void setRtHop(uint8_t v) {
+    rtHop = v;
+}
+
 MeshService::MeshService()
 #ifdef ARCH_PORTDUINO
     : toPhoneQueue(MAX_RX_TOPHONE), toPhoneQueueStatusQueue(MAX_RX_QUEUESTATUS_TOPHONE),

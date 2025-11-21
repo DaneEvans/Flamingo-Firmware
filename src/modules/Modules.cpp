@@ -96,7 +96,8 @@
 #if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
 #include "modules/ExternalNotificationModule.h"
 #endif
-#if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
+//#if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
+#if 1
 #include "modules/RangeTestModule.h"
 #endif
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !MESHTASTIC_EXCLUDE_SERIAL
@@ -105,6 +106,10 @@
 
 #if !MESHTASTIC_EXCLUDE_DROPZONE
 #include "modules/DropzoneModule.h"
+#endif
+
+#ifdef USE_RT_BUZZER
+#include "modules/BuzzerModule.h"
 #endif
 
 /**
@@ -272,6 +277,9 @@ void setupModules()
         new SerialModule();
     }
 #endif
+#ifdef USE_RT_BUZZER
+        buzzerModule = new BuzzerModule();
+#endif
 #endif
 #ifdef ARCH_ESP32
     // Only run on an esp32 based device.
@@ -294,8 +302,10 @@ void setupModules()
 #if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
     externalNotificationModule = new ExternalNotificationModule();
 #endif
-#if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
-    if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
+//#if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
+    // if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
+    //    new RangeTestModule();
+#if 1
         new RangeTestModule();
 #endif
     // NOTE! This module must be added LAST because it likes to check for replies from other modules and avoid sending extra

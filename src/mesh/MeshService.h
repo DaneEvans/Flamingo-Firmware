@@ -24,6 +24,11 @@
 #endif
 #endif
 
+extern void setRtDynamicEnable(uint8_t v);
+extern uint8_t getRtDynanmicEnable();
+extern void setRtHop(uint8_t v);
+extern uint8_t getRtHop();
+
 extern Allocator<meshtastic_QueueStatus> &queueStatusPool;
 extern Allocator<meshtastic_MqttClientProxyMessage> &mqttClientProxyMessagePool;
 extern Allocator<meshtastic_ClientNotification> &clientNotificationPool;

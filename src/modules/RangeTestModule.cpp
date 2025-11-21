@@ -8,6 +8,7 @@
  * The RangeTestModule class is an OSThread that runs the module.
  * The RangeTestModuleRadio class handles sending and receiving packets.
  */
+#include "Default.h"
 #include "RangeTestModule.h"
 #include "FSCommon.h"
 #include "MeshService.h"
@@ -21,6 +22,9 @@
 #include "gps/GeoCoord.h"
 #include <Arduino.h>
 #include <Throttle.h>
+#ifdef USE_RT_BUZZER
+#include "BuzzerModule.h"
+#endif
 
 RangeTestModule *rangeTestModule;
 RangeTestModuleRadio *rangeTestModuleRadio;
@@ -43,17 +47,34 @@ int32_t RangeTestModule::runOnce()
     // moduleConfig.range_test.save = 1;
     // moduleConfig.range_test.clear_on_reboot = 1;
 
+    // always disable saving of range test data as we don't want to waste cycles doing this
+    moduleConfig.range_test.save = 0;
+
     // Fixed position is useful when testing indoors.
     // config.position.fixed_position = 1;
 
     uint32_t senderHeartbeat = moduleConfig.range_test.sender * 1000;
+
+    // All Cave nodes will have this enabled
     if (moduleConfig.range_test.enabled) {
 
         if (firstTime) {
             rangeTestModuleRadio = new RangeTestModuleRadio();
+            // with Soft RT on/off without reboot, every radio that 
+            // has range_test enabled can possibly be a sender.
+            // So, never disable this thread
 
             firstTime = 0;
+            LOG_INFO("Init Range Test Module -- Sender");
+            started = millis(); // make a note of when we started
+            if (!getRtDynanmicEnable()) {
+                    LOG_INFO("Range Test Module is soft-disabled."); 
+                    return (senderHeartbeat);
+            }
 
+            return (5000);      // Sending first message 5 seconds after initialization.
+
+#if 0
             if (moduleConfig.range_test.clear_on_reboot) {
                 // User wants to delete previous range test(s)
                 LOG_INFO("Range Test Module - Clearing out previous test file");
@@ -68,18 +89,24 @@ int32_t RangeTestModule::runOnce()
                 return disable();
                 // This thread does not need to run as a receiver
             }
+#endif
         } else {
 
             if (moduleConfig.range_test.sender) {
                 // If sender
-                LOG_INFO("Range Test Module - Sending heartbeat every %d ms", (senderHeartbeat));
+                if (!getRtDynanmicEnable()) {
+                    LOG_INFO("Range Test Module is soft-disabled."); 
+                    return (senderHeartbeat);
+                }
 
+                LOG_INFO("Range Test Module - Sending heartbeat every %d ms", (senderHeartbeat));
+#if !MESHTASTIC_EXCLUDE_GPS
                 LOG_INFO("gpsStatus->getLatitude()     %d", gpsStatus->getLatitude());
                 LOG_INFO("gpsStatus->getLongitude()    %d", gpsStatus->getLongitude());
                 LOG_INFO("gpsStatus->getHasLock()      %d", gpsStatus->getHasLock());
                 LOG_INFO("gpsStatus->getDOP()          %d", gpsStatus->getDOP());
                 LOG_INFO("fixed_position()             %d", config.position.fixed_position);
-
+#endif
                 // Only send packets if the channel is less than 25% utilized.
                 if (airTime->isTxAllowedChannelUtil(true)) {
                     rangeTestModuleRadio->sendPayload();
@@ -116,7 +143,9 @@ void RangeTestModuleRadio::sendPayload(NodeNum dest, bool wantReplies)
     meshtastic_MeshPacket *p = allocDataPacket();
     p->to = dest;
     p->decoded.want_response = wantReplies;
-    p->hop_limit = 0;
+    //p->hop_limit = 0;
+    // Conditionally hop Range Test packets
+    p->hop_limit = getRtHop() ? Default::getConfiguredOrDefaultHopLimit(config.lora.hop_limit) : 0;
     p->want_ack = false;
 
     packetSequence++;
@@ -149,7 +178,17 @@ ProcessMessage RangeTestModuleRadio::handleReceived(const meshtastic_MeshPacket 
             if (moduleConfig.range_test.save) {
                 appendFile(mp);
             }
-
+            
+#ifdef USE_RT_BUZZER
+            uint8_t num_tones = 1;
+            if (mp.rx_rssi < -110) {
+                num_tones = 3;
+            }
+            else if (mp.rx_rssi < -90) {
+                num_tones = 2;
+            }
+            buzzerModule->startTone(1, 250, 100, num_tones);
+#endif
             /*
             NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&mp));
 

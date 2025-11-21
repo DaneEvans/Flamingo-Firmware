@@ -30,8 +30,9 @@ Ideally the flamingo code is portable, and could be cherry-picked back onto an e
 To that end, we maintain flamingo tags as well.
 These should be able to be merged onto later meshtastic versions with minimal impact (excluding conflicts.)
 
-| Flamingo version         | Meshtastic base | Meshtastic versions | Comments                                                |
-| ------------------------ | --------------- | ------------------- | ------------------------------------------------------- |
-| Flamingo_fw2_7_generated | v2.7.9          | v2.7.9 +            | Huntsville - protected all changes with FLAMINGO define |
-| flamingo_2510            | v2.7.10         | v2.7.10 +           | Aussie, pre #defines                                    |
-| jun2025                  | v2.5.20         | v2.5.20+            | Huntsville - buzzer pin is set for wismesh pocket       |
+| Flamingo version         | Meshtastic base | Comments                                          |
+| ------------------------ | --------------- | ------------------------------------------------- |
+| flamingo_2511            | v2.7.9          | Starting to use this Flamingo-firmware repo       |
+| Flamingo_fw2_7_generated | v2.7.9          | Huntsville - added FLAMINGO define                |
+| flamingo_2510            | v2.7.10         | Aussie, pre #defines                              |
+| jun2025                  | v2.5.20         | Huntsville - buzzer pin is set for wismesh pocket |

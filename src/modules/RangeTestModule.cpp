@@ -11,12 +11,12 @@
 #ifdef FLAMINGO
 #include "Default.h"
 #endif
-#include "RangeTestModule.h"
 #include "FSCommon.h"
 #include "MeshService.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "RTC.h"
+#include "RangeTestModule.h"
 #include "Router.h"
 #include "SPILock.h"
 #include "airtime.h"
@@ -37,26 +37,25 @@ uint32_t packetSequence = 0;
 
 #ifdef FLAMINGO
 
-#define SNR_BUFFER_SIZE 3    // 3 packets seem to be enough for a decent average
-#define SNR_MININMUM 1.0     // send three beeps if below this threadhold
+#define SNR_BUFFER_SIZE 3 // 3 packets seem to be enough for a decent average
+#define SNR_MININMUM 1.0  // send three beeps if below this threadhold
 
-float snr_buffer[SNR_BUFFER_SIZE];  // SNR values of last SNR_BUFFER_SIZE packets
+float snr_buffer[SNR_BUFFER_SIZE]; // SNR values of last SNR_BUFFER_SIZE packets
 float snr_last_average = 0.0;      // SNR average of last SNR_BUFFER_SIZE packets
 uint8_t snr_buffer_ptr = 0;        // circular buffer pointer into snr_buffer
 uint8_t snr_buffer_count = 0;      // Used to track that received min number of packets to compute SNR average
 
-float RangeTestGetSnrAverage() {
+float RangeTestGetSnrAverage()
+{
     return snr_last_average;
 }
 
-bool RangeTestIsValidSnrAverage() {
+bool RangeTestIsValidSnrAverage()
+{
     return snr_buffer_count == SNR_BUFFER_SIZE;
 }
 
-
 #endif
-
-
 
 int32_t RangeTestModule::runOnce()
 {
@@ -82,14 +81,13 @@ int32_t RangeTestModule::runOnce()
 
     uint32_t senderHeartbeat = moduleConfig.range_test.sender * 1000;
 
-    
     if (moduleConfig.range_test.enabled) {
 
         if (firstTime) {
             rangeTestModuleRadio = new RangeTestModuleRadio();
 #ifdef FLAMINGO
             // All Cave nodes that are part of the mesh should have have this enabled
-            // with Soft RT on/off without reboot, every radio that 
+            // with Soft RT on/off without reboot, every radio that
             // has range_test enabled can possibly be a sender.
             // So, never disable this thread
 
@@ -97,14 +95,15 @@ int32_t RangeTestModule::runOnce()
             LOG_INFO("Init Range Test Module -- Sender");
             started = millis(); // make a note of when we started
             if (!getRtDynanmicEnable()) {
-                    LOG_INFO("Range Test Module is soft-disabled."); 
-                    return (senderHeartbeat);
+                LOG_INFO("Range Test Module is soft-disabled.");
+                return (senderHeartbeat);
             }
 
             snr_buffer_ptr = 0;
             snr_buffer_count = 0;
-            for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++) snr_buffer[i] = 0;
-            return (5000);      // Sending first message 5 seconds after initialization.
+            for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++)
+                snr_buffer[i] = 0;
+            return (5000); // Sending first message 5 seconds after initialization.
 #else
             firstTime = 0;
 
@@ -128,7 +127,7 @@ int32_t RangeTestModule::runOnce()
             if (moduleConfig.range_test.sender) {
 #ifdef FLAMINGO
                 if (!getRtDynanmicEnable()) {
-                    LOG_INFO("Range Test Module is soft-disabled."); 
+                    LOG_INFO("Range Test Module is soft-disabled.");
                     return (senderHeartbeat);
                 }
 #endif
@@ -191,7 +190,7 @@ void RangeTestModuleRadio::sendPayload(NodeNum dest, bool wantReplies)
 #else
     p->hop_limit = 0;
 #endif
-    
+
     p->want_ack = false;
 
     packetSequence++;
@@ -225,31 +224,30 @@ ProcessMessage RangeTestModuleRadio::handleReceived(const meshtastic_MeshPacket 
             if (moduleConfig.range_test.save) {
                 appendFile(mp);
             }
-            
+
 #ifdef FLAMINGO
             // Compute SNR average of last SNR_BUFFER_SIZE packets
-            snr_buffer[snr_buffer_ptr] = mp.rx_snr;  // save SNR value
-            if (snr_buffer_count < SNR_BUFFER_SIZE)
-            {
-                snr_buffer_count++;  // track that we have received enough packets to compute an average
+            snr_buffer[snr_buffer_ptr] = mp.rx_snr; // save SNR value
+            if (snr_buffer_count < SNR_BUFFER_SIZE) {
+                snr_buffer_count++; // track that we have received enough packets to compute an average
             }
             if (snr_buffer_count == SNR_BUFFER_SIZE) {
                 /* We have enough packets to compute the average*/
                 snr_last_average = 0.0;
-                for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++) snr_last_average += snr_buffer[i];
-                snr_last_average = snr_last_average/SNR_BUFFER_SIZE;
+                for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++)
+                    snr_last_average += snr_buffer[i];
+                snr_last_average = snr_last_average / SNR_BUFFER_SIZE;
             }
             /* increment buffer pointer after average */
             snr_buffer_ptr++;
-            if (snr_buffer_ptr >= SNR_BUFFER_SIZE) snr_buffer_ptr = 0; // wrap pointer
+            if (snr_buffer_ptr >= SNR_BUFFER_SIZE)
+                snr_buffer_ptr = 0; // wrap pointer
             uint8_t num_tones = 1;
             if ((snr_buffer_count == SNR_BUFFER_SIZE) && snr_last_average < SNR_MININMUM) {
-                 num_tones = 3; // set max tones regardless of RSSI value
-            }
-            else if (mp.rx_rssi < -110) {
+                num_tones = 3; // set max tones regardless of RSSI value
+            } else if (mp.rx_rssi < -110) {
                 num_tones = 3;
-            }
-            else if (mp.rx_rssi < -90) {
+            } else if (mp.rx_rssi < -90) {
                 num_tones = 2;
             }
 #ifdef FLAMINGO_BUZZER
@@ -409,7 +407,6 @@ bool RangeTestModuleRadio::appendFile(const meshtastic_MeshPacket &mp)
 
     return 1;
 }
-
 
 bool RangeTestModuleRadio::removeFile()
 {

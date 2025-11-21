@@ -73,13 +73,13 @@ jobs:
           ref: "meshtastic_master"
           fetch-depth: 0
 
-      - name: Merge flamingo_patch
+      - name: Merge flamingo patch
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b temp
           git remote -v 
-          git merge origin/flamingo_patch
+          git merge origin/flamingo
 
       - name: Force push temp branch to flamingo_updated
         env:
@@ -97,13 +97,13 @@ jobs:
           ref: "meshtastic_develop"
           fetch-depth: 0
 
-      - name: Merge flamingo_patch
+      - name: Merge flamingo patch
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b temp
           git remote -v 
-          git merge origin/flamingo_patch
+          git merge origin/flamingo
 
       - name: Force push temp branch to flamingo_updated_dev
         env:

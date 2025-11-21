@@ -15,7 +15,7 @@ This repository is a clone of the base Meshtastic repository. It is intentionall
 - Main: Houses the readmes, and github CI actions.
 - meshtastic_master: Shadows the Meshtastic/firmware:master branch - kept in sync by CI.
 - meshtastic_develop: Shadows the Meshtastic/firmware:develop branch - kept in sync by CI.
-- flamingo_patch: This is the branch that contains all of the flamingo changes. This is what changes to the flamingo firmware should be based off, and merged back to.
+- flamingo: This is the branch that contains all of the flamingo changes. This is what changes to the flamingo firmware should be based off, and merged back to.
 - flamingo_updated: This applies the flamingo patch to meshtastic_master
 - flamingo_updated_dev: This applies the flamingo patch to meshtastic_develop
 

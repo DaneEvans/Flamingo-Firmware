@@ -80,7 +80,7 @@ jobs:
           git checkout -b temp
           git remote -v 
           git fetch --tags 
-          git merge origin/flamingo
+          git merge flamingo
 
       - name: Force push temp branch to flamingo_updated
         env:
@@ -105,7 +105,7 @@ jobs:
           git checkout -b temp
           git remote -v 
           git fetch --tags
-          git merge origin/flamingo
+          git merge flamingo
 
       - name: Force push temp branch to flamingo_updated_dev
         env:

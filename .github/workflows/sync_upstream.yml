@@ -79,6 +79,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b temp
           git remote -v 
+          git fetch --tags 
           git merge origin/flamingo
 
       - name: Force push temp branch to flamingo_updated
@@ -103,6 +104,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b temp
           git remote -v 
+          git fetch --tags
           git merge origin/flamingo
 
       - name: Force push temp branch to flamingo_updated_dev

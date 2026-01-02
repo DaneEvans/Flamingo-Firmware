@@ -246,18 +246,30 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 #define PIN_3V3_EN (34)
 #define WB_IO2 PIN_3V3_EN
 
-// RAK1910 GPS module
-// If using the wisblock GPS module and pluged into Port A on WisBlock base
-// IO1 is hooked to PPS (pin 12 on header) = gpio 17
-// IO2 is hooked to GPS RESET = gpio 34, but it can not be used to this because IO2 is ALSO used to control 3V3_S power (1 is on).
-// Therefore must be 1 to keep peripherals powered
-// Power is on the controllable 3V3_S rail
-// #define PIN_GPS_RESET (34)
-// #define PIN_GPS_EN PIN_3V3_EN
-#define PIN_GPS_PPS (17) // Pulse per second input from the GPS
+/*
+ * GPS pins
+ */
 
-#define GPS_RX_PIN PIN_SERIAL1_RX
-#define GPS_TX_PIN PIN_SERIAL1_TX
+#define GPS_L76K
+
+#define PIN_GPS_RESET (17) // An output to reset L76K GPS. As per datasheet, low for > 100ms will reset the L76K
+#define GPS_RESET_MODE LOW
+#define PIN_GPS_EN (17)
+// #define VEXT_ENABLE (0 + 21)
+#define PERIPHERAL_WARMUP_MS 1000 // Make sure I2C QuickLink has stable power before continuing
+// #define VEXT_ON_VALUE HIGH
+#define GPS_EN_ACTIVE HIGH
+// #define PIN_GPS_STANDBY (32 + 2) // An output to wake GPS, low means allow sleep, high means force wake
+// #define PIN_GPS_PPS (32 + 4)
+// Seems to be missing on this new board
+// #define PIN_GPS_PPS (32 + 4)  // Pulse per second input from the GPS
+#define GPS_TX_PIN (20) // This is for bits going TOWARDS the CPU
+#define GPS_RX_PIN (19) // This is for bits going TOWARDS the GPS
+
+#define GPS_THREAD_INTERVAL 50
+
+#define PIN_SERIAL1_RX GPS_TX_PIN
+#define PIN_SERIAL1_TX GPS_RX_PIN
 
 // Define pin to enable GPS toggle (set GPIO to LOW) via user button triple press
 

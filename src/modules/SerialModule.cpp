@@ -182,8 +182,9 @@ int32_t SerialModule::runOnce()
     //moduleConfig.serial.txd = 20;
     // These next pins are RDX1, TXD1 on WishMesh  starter kit
     // We would use these if using the WisMesh + RS485 interface
-    moduleConfig.serial.rxd = 15;   
-    moduleConfig.serial.txd = 16;
+    moduleConfig.serial.rxd = 19;   
+    moduleConfig.serial.txd = 20;
+    // enable on 21
     moduleConfig.serial.override_console_serial_port = false;
     moduleConfig.serial.mode = meshtastic_ModuleConfig_SerialConfig_Serial_Mode_DEFAULT;
     moduleConfig.serial.timeout = TIMEOUT;
@@ -495,9 +496,12 @@ int32_t SerialModule::runOnce()
     // moduleConfig.serial.timeout = 1000;
     // moduleConfig.serial.echo = 1;
 
+    LOG_INFO("serial runOnce.");
+
     if (!moduleConfig.serial.enabled)
         return disable();
 
+    LOG_INFO("serial runOnce.");
     if (moduleConfig.serial.override_console_serial_port || (moduleConfig.serial.rxd && moduleConfig.serial.txd)) {
         if (firstTime) {
             // Interface with the serial peripheral from in here.
@@ -578,6 +582,8 @@ int32_t SerialModule::runOnce()
                 emitRebooted();
             }
         } else {
+            LOG_INFO("serial - not FirstTime");
+            LOG_DEBUG("HasGps: %i", HAS_GPS);
             if (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_PROTO) {
                 return runOncePart();
             } else if ((moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_NMEA) && HAS_GPS) {
@@ -588,6 +594,7 @@ int32_t SerialModule::runOnce()
                     serialPrint->printf("%s", outbuf);
                 }
             } else if ((moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_CALTOPO) && HAS_GPS) {
+                LOG_INFO("CALTOPO enabled.");
                 if (!Throttle::isWithinTimespanMs(lastNmeaTime, 10000)) {
                     lastNmeaTime = millis();
                     uint32_t readIndex = 0;

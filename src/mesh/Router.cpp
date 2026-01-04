@@ -24,6 +24,7 @@
 #endif
 #ifdef FLAMINGO
 #include "modules/RangeTestModule.h"
+#include "modules/BlinkModule.h"
 #ifdef FLAMINGO_SLINK
 #include "modules/SerialModule.h"
 #endif
@@ -63,16 +64,6 @@ Allocator<meshtastic_MeshPacket> &packetPool = staticPool;
 #endif
 #ifdef FLAMINGO
 static uint8_t bytes[MAX_LORA_PAYLOAD_LEN + 1] __attribute__((aligned(4)));
-// LED control variables for range test SNR indication
-static unsigned long ledControlStartTime = 0;
-static bool ledsActive = false;
-static bool ledsInitialized = false;
-#ifndef PIN_LED_RT_R
-#define PIN_LED_RT_R (3)
-#endif
-#ifndef PIN_LED_RT_G
-#define PIN_LED_RT_G (2)
-#endif
 #else
 static uint8_t bytes[MAX_LORA_PAYLOAD_LEN + 1] __attribute__((__aligned__));
 #endif
@@ -160,22 +151,6 @@ int32_t Router::runOnce()
         // printPacket("handle fromRadioQ", mp);
         perhapsHandleReceived(mp);
     }
-
-#ifdef FLAMINGO
-    // Check if LEDs need to be reset after timeout (5-10 seconds)
-    if (ledsActive && ledsInitialized) {
-        unsigned long elapsed = millis() - ledControlStartTime;
-        if (elapsed >= 7500) { // 7.5 seconds (middle of 5-10 second range)
-            digitalWrite(PIN_LED_RT_R, LOW);
-            digitalWrite(PIN_LED_RT_G, LOW);
-            ledsActive = false;
-            LOG_DEBUG("Range test LEDs reset after timeout (elapsed: %lu ms)", elapsed);
-        } else {
-            // LEDs are active, check again in 500ms to catch the timeout
-            return 500;
-        }
-    }
-#endif
 
     // LOG_DEBUG("Sleep forever!");
     return INT32_MAX; // Wait a long time - until we get woken for the message queue
@@ -565,45 +540,35 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
                 // this is a range test packet. 
                 auto bp = (char *)p->decoded.payload.bytes + p->decoded.payload.size;
                 
-                // Initialize LED pins as outputs on first use
-                if (!ledsInitialized) {
-                    pinMode(PIN_LED_RT_R, OUTPUT);
-                    pinMode(PIN_LED_RT_G, OUTPUT);
-                    digitalWrite(PIN_LED_RT_R, LOW);
-                    digitalWrite(PIN_LED_RT_G, LOW);
-                    ledsInitialized = true;
-                    LOG_DEBUG("Range test LED pins initialized as outputs (R=%d, G=%d)", PIN_LED_RT_R, PIN_LED_RT_G);
-                }
-                
-                // LED timeout check is now handled in runOnce() for periodic checking
-                
                 if (RangeTestIsValidSnrAverage()) {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:%.2f", p->rx_rssi, p->rx_snr, RangeTestGetSnrAverage());
                     if (extra > 0){
                         p->decoded.payload.size = p->decoded.payload.size + extra;
                     }
                     
-                    // Control LEDs based on SNR average
+                    #ifdef FLAMINGO_RT_LED
+                    // Control LEDs based on SNR average using BlinkModule
                     float snrAvg = RangeTestGetSnrAverage();
-                    ledControlStartTime = millis();
-                    ledsActive = true;
+                    LEDColor rtColor;
                     
                     if (snrAvg > 10.0f) {
-                        // SNR Avg > 10: Only green LED
-                        digitalWrite(PIN_LED_RT_G, HIGH);
-                        digitalWrite(PIN_LED_RT_R, LOW);
+                        // SNR Avg > 10: Green LED
+                        rtColor = LEDColor::Green;
                         LOG_DEBUG("Range test LED: SNR_AVG=%.2f > 10, GREEN LED ON", snrAvg);
                     } else if (snrAvg < 4.0f) {
-                        // SNR Avg < 4: Only red LED
-                        digitalWrite(PIN_LED_RT_R, HIGH);
-                        digitalWrite(PIN_LED_RT_G, LOW);
+                        // SNR Avg < 4: Red LED
+                        rtColor = LEDColor::Red;
                         LOG_DEBUG("Range test LED: SNR_AVG=%.2f < 4, RED LED ON", snrAvg);
                     } else {
-                        // Middle ground (4 <= SNR Avg <= 10): Both LEDs
-                        digitalWrite(PIN_LED_RT_R, HIGH);
-                        digitalWrite(PIN_LED_RT_G, HIGH);
-                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f (4-10), BOTH LEDs ON", snrAvg);
+                        // Middle ground (4 <= SNR Avg <= 10): Amber (both LEDs)
+                        rtColor = LEDColor::Amber;
+                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f (4-10), AMBER LED ON", snrAvg);
                     }
+                    
+                    if (blinkModule) {
+                        blinkModule->setRangeTestLED(rtColor);
+                    }
+                    #endif
                 } else {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:n/a", p->rx_rssi, p->rx_snr);
                     if (extra > 0){

@@ -32,6 +32,7 @@ BlinkModule::BlinkModule() : concurrency::OSThread("Blink") {}
 void BlinkModule::setRGBLEDColor(uint8_t pinR, uint8_t pinG, uint8_t pinB, LEDColor color)
 {
     bool hasBlue = (pinB != 0);
+    LOG_DEBUG("setRGBLEDColor: R=%d G=%d B=%d color=%d hasBlue=%d", pinR, pinG, pinB, (int)color, hasBlue);
     
     switch (color) {
         case LEDColor::Off:
@@ -86,23 +87,7 @@ void BlinkModule::setRGBLEDColor(uint8_t pinR, uint8_t pinG, uint8_t pinB, LEDCo
 #ifdef FLAMINGO_RT_LED
 void BlinkModule::setRangeTestLED(LEDColor color)
 {
-    // Initialize LED pins as outputs on first use
-    if (!rtLedsInitialized) {
-        pinMode(PIN_LED_RT_R, OUTPUT);
-        pinMode(PIN_LED_RT_G, OUTPUT);
-        digitalWrite(PIN_LED_RT_R, LOW);
-        digitalWrite(PIN_LED_RT_G, LOW);
-        if (PIN_LED_RT_B != 0) {
-            pinMode(PIN_LED_RT_B, OUTPUT);
-            digitalWrite(PIN_LED_RT_B, LOW);
-            LOG_DEBUG("Range test LED pins initialized as outputs (R=%d, G=%d, B=%d)", PIN_LED_RT_R, PIN_LED_RT_G, PIN_LED_RT_B);
-        } else {
-            LOG_DEBUG("Range test LED pins initialized as outputs (R=%d, G=%d)", PIN_LED_RT_R, PIN_LED_RT_G);
-        }
-        rtLedsInitialized = true;
-
-    }
-    
+    // Pins are initialized at startup, just set the color
     setRGBLEDColor(PIN_LED_RT_R, PIN_LED_RT_G, PIN_LED_RT_B, color);
     rtLedControlStartTime = millis();
     rtLedsActive = (color != LEDColor::Off);
@@ -119,26 +104,13 @@ void BlinkModule::setRangeTestLEDTimeout(unsigned long timeoutMs)
 #ifdef FLAMINGO_CONNECTION_LED
 void BlinkModule::setConnectionLED(LEDColor color)
 {
-    // Initialize LED pins as outputs on first use
-    if (!connLedsInitialized) {
-        pinMode(PIN_LED_CONN_R, OUTPUT);
-        pinMode(PIN_LED_CONN_G, OUTPUT);
-        digitalWrite(PIN_LED_CONN_R, LOW);
-        digitalWrite(PIN_LED_CONN_G, LOW);
-        if (PIN_LED_CONN_B != 0) {
-            pinMode(PIN_LED_CONN_B, OUTPUT);
-            digitalWrite(PIN_LED_CONN_B, LOW);
-            LOG_DEBUG("Connection LED pins initialized as outputs (R=%d, G=%d, B=%d)", PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B);
-        } else {
-            LOG_DEBUG("Connection LED pins initialized as outputs (R=%d, G=%d)", PIN_LED_CONN_R, PIN_LED_CONN_G);
-        }
-        connLedsInitialized = true;
-    }
-    
+    // Pins are initialized at startup, just set the color
+    LOG_DEBUG("setConnectionLED called with color=%d, pins R=%d G=%d B=%d", (int)color, PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B);
     setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, color);
     connLedControlStartTime = millis();
     connLedsActive = (color != LEDColor::Off);
     connLedColor = color;
+    LOG_DEBUG("Connection LED set: active=%d, color=%d", connLedsActive, (int)color);
 }
 
 void BlinkModule::setConnectionLEDTimeout(unsigned long timeoutMs)
@@ -177,6 +149,34 @@ int32_t BlinkModule::runOnce()
         blinkNumber = 0;
         blinkDurationMSecs = 500;
         blinkPauseMSecs = 2000;
+        
+        #ifdef FLAMINGO_RT_LED
+        // Initialize Range Test LED pins at startup
+        pinMode(PIN_LED_RT_R, OUTPUT);
+        pinMode(PIN_LED_RT_G, OUTPUT);
+        digitalWrite(PIN_LED_RT_R, LOW);
+        digitalWrite(PIN_LED_RT_G, LOW);
+        if (PIN_LED_RT_B != 0) {
+            pinMode(PIN_LED_RT_B, OUTPUT);
+            digitalWrite(PIN_LED_RT_B, LOW);
+        }
+        rtLedsInitialized = true;
+        LOG_DEBUG("Range test LED pins initialized at startup (R=%d, G=%d, B=%d)", PIN_LED_RT_R, PIN_LED_RT_G, PIN_LED_RT_B);
+        #endif
+        
+        #ifdef FLAMINGO_CONNECTION_LED
+        // Initialize Connection LED pins at startup
+        pinMode(PIN_LED_CONN_R, OUTPUT);
+        pinMode(PIN_LED_CONN_G, OUTPUT);
+        digitalWrite(PIN_LED_CONN_R, LOW);
+        digitalWrite(PIN_LED_CONN_G, LOW);
+        if (PIN_LED_CONN_B != 0) {
+            pinMode(PIN_LED_CONN_B, OUTPUT);
+            digitalWrite(PIN_LED_CONN_B, LOW);
+        }
+        connLedsInitialized = true;
+        LOG_DEBUG("Connection LED pins initialized at startup (R=%d, G=%d, B=%d)", PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B);
+        #endif
     }
     
     unsigned long now = millis();

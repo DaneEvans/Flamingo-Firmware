@@ -106,7 +106,7 @@
 #include "modules/BuzzerModule.h"
 #endif
 
-#ifdef FLAMINGO_BLINKY
+#ifdef FLAMINGO_BLINKY || FLAMINGO_RT_LED || FLAMINGO_CONNECTION_LED
 #include "modules/BlinkModule.h"
 #endif
 

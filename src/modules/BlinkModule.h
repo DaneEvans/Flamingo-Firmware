@@ -23,20 +23,20 @@
   #define PIN_LED_RT_G (2)
   #endif
   #ifndef PIN_LED_RT_B
-  #define PIN_LED_RT_B (6)
+  #define PIN_LED_RT_B (28)
   #endif
 #endif 
 
 #ifdef FLAMINGO_CONNECTION_LED
   // Connection LED pins
   #ifndef PIN_LED_CONN_R
-  #define PIN_LED_CONN_R (5)
+  #define PIN_LED_CONN_R (30)
   #endif
   #ifndef PIN_LED_CONN_G
-  #define PIN_LED_CONN_G (4)
+  #define PIN_LED_CONN_G (26)
   #endif
   #ifndef PIN_LED_CONN_B
-  #define PIN_LED_CONN_B (7)
+  #define PIN_LED_CONN_B (29)
   #endif
 #endif
 

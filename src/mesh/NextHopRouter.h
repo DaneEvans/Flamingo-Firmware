@@ -3,6 +3,7 @@
 #include "FloodingRouter.h"
 #include <unordered_map>
 
+#ifndef FLAMINGO_MAX_REXMIT
 /**
  * An identifier for a globally unique message - a pair of the sending nodenum and the packet id assigned
  * to that message
@@ -48,6 +49,8 @@ class GlobalPacketIdHashFunction
     size_t operator()(const GlobalPacketId &p) const { return (std::hash<NodeNum>()(p.node)) ^ (std::hash<PacketId>()(p.id)); }
 };
 
+#endif
+
 /*
   Router for direct messages, which only relays if it is the next hop for a packet. The next hop is set by the current
   relayer of a packet, which bases this on information from a previous successful delivery to the destination via flooding.
@@ -87,7 +90,11 @@ class NextHopRouter : public FloodingRouter
     }
 
     // The number of retransmissions intermediate nodes will do (actually 1 less than this)
-    constexpr static uint8_t NUM_INTERMEDIATE_RETX = 2;
+#ifdef FLAMINGO_MAX_REXMIT
+    constexpr static uint8_t NUM_INTERMEDIATE_RETX = FLAMINGO_MAX_REXMIT + 1;
+#else
+    constexpr static uint8_t NUM_INTERMEDIATE_RETX = 3;
+#endif
     // The number of retransmissions the original sender will do
     constexpr static uint8_t NUM_RELIABLE_RETX = 3;
 

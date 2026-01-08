@@ -28,10 +28,12 @@ ErrorCode NextHopRouter::send(meshtastic_MeshPacket *p)
 
     // If it's from us, ReliableRouter already handles retransmissions if want_ack is set. If a next hop is set and hop limit is
     // not 0 or want_ack is set, start retransmissions
-    #ifdef FLAMINGO
-    // Don't check for known next hop
-    if ((!isFromUs(p) || !p->want_ack) &&  (p->hop_limit > 0 || p->want_ack)) {
-        startRetransmission(packetPool.allocCopy(*p)); // start retransmission for relayed packet
+#ifdef FLAMINGO_MAX_REXMIT
+    // Don't check for known next hop and only rxmit if max_rexmit > 0
+    if (FLAMINGO_MAX_REXMIT > 0) {
+        if ((!isFromUs(p) || !p->want_ack) && (p->hop_limit > 0 || p->want_ack)) {
+            startRetransmission(packetPool.allocCopy(*p)); // start retransmission for relayed packet
+        }
     }
 #else
     if ((!isFromUs(p) || !p->want_ack) && p->next_hop != NO_NEXT_HOP_PREFERENCE && (p->hop_limit > 0 || p->want_ack)) {

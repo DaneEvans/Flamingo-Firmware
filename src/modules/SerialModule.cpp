@@ -109,7 +109,6 @@ void insertSerialPacketToMesh(meshtastic_serialPacket *sp) {
     p->hop_limit = sp->header.hop_limit;
     p->hop_start = sp->header.hop_start;
     p->want_ack = !!(sp->header.flags & PACKET_FLAGS_WANT_ACK_MASK);
-    p->via_slink = true;
     p->via_mqtt = 0;
     uint16_t payloadLen = sp->header.size - sizeof(SerialPacketHeader);
     if (!!(sp->header.flags & PACKET_FLAGS_ENCRYPTED_MASK)) {
@@ -265,10 +264,6 @@ bool SerialModuleRadio::wantPacket(const meshtastic_MeshPacket *p) {
 */
 void SerialModuleRadio::onSend(const meshtastic_MeshPacket &mp) {
 
-    if (mp.via_slink) {
-        LOG_DEBUG("Serial Module Onsend TX - ignoring packet that came from slink");
-    }
-    
     LOG_DEBUG("Serial Module Onsend TX   from=0x%0x, to=0x%0x, packet_id=0x%0x",
               mp.from, mp.to, mp.id);
     meshPacketToSerialPacket(mp, &outPacket);

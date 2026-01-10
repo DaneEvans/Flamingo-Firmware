@@ -476,10 +476,44 @@ void RadioLibInterface::handleReceiveInterrupt()
                 return;
             }
 #ifdef FLAMINGO
+#ifdef FLAMINGO_HOP_DEBUG
+            uint16_t myshortnum = get_myshortname_magicnumber();
+            uint16_t reject_packet = 1;
+            LOG_INFO("MagicNumber: MyShortNum: %d, RX packet headerMagicNum: %d", myshortnum, radioBuffer.header.magicnum);
+            if (myshortnum == 12 && (radioBuffer.header.magicnum == 20 || radioBuffer.header.magicnum == 11) ) {
+                reject_packet = 0;
+            }
+            
+            if (myshortnum == 20 && (radioBuffer.header.magicnum == 12 || radioBuffer.header.magicnum == 21) ) {
+                reject_packet = 0;
+            }
+             if (myshortnum == 1 && (radioBuffer.header.magicnum == 2) ) {
+                reject_packet = 0;
+            }
+
+            if ((reject_packet) && (radioBuffer.header.magicnum == myshortnum-1 || radioBuffer.header.magicnum == myshortnum+1)) {
+                reject_packet = 0;
+            }
+            if (radioBuffer.header.magicnum ==  0) reject_packet = 1;
+            if (reject_packet) {
+                LOG_INFO("MagicNumber: Dropping received packet based on mismatch");
+                return;
+            }
+#ifdef FLAMINGO_REJECT_PERCENTAGE
+            // reject a percentage of packets even if intended for us
+            long v = random(0, 100);
+            if (v < FLAMINGO_REJECT_PERCENTAGE) {
+                LOG_INFO("MagicNumber: Force dropping packet, random reject, %d < %d", v, FLAMINGO_REJECT_PERCENTAGE);
+                return;
+            }
+#endif
+            LOG_INFO("MagicNumber: Accepting received packet");
+#else
             if (radioBuffer.header.magicnum != PACKET_HEADER_MAGIC_NUMBER) {
                 LOG_INFO("Dropping received packet for magic number mismatch");
                 return;
             }
+#endif
 #endif
 
             // Note: we deliver _all_ packets to our router (i.e. our interface is intentionally promiscuous).

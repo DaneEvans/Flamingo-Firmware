@@ -96,16 +96,38 @@
 #if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
 #include "modules/ExternalNotificationModule.h"
 #endif
+
+#ifdef FLAMINGO
+#include "modules/RangeTestModule.h"
+
+#ifdef FLAMINGO_BUZZER
+#include "modules/BuzzerModule.h"
+#endif
+
+#ifdef FLAMINGO_BLINKY
+#include "modules/BlinkModule.h"
+#endif
+
+#ifdef FLAMINGO_SLINK
+#include "modules/SerialModule.h"
+#endif
+
+#else
+
 #if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
 #include "modules/RangeTestModule.h"
 #endif
+
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !MESHTASTIC_EXCLUDE_SERIAL
 #include "modules/SerialModule.h"
+#endif
+
 #endif
 
 #if !MESHTASTIC_EXCLUDE_DROPZONE
 #include "modules/DropzoneModule.h"
 #endif
+
 
 /**
  * Create module instances here.  If you are adding a new module, you must 'new' it here (or somewhere else)
@@ -266,11 +288,28 @@ void setupModules()
 #endif
 #if (defined(ARCH_ESP32) || defined(ARCH_NRF52) || defined(ARCH_RP2040) || defined(ARCH_STM32WL)) &&                             \
     !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3)
+
+
+#ifdef FLAMINGO
+#ifdef FLAMINGO_BUZZER
+        buzzerModule = new BuzzerModule();
+#endif
+#ifdef FLAMINGO_BLINKY
+        blinkModule = new BlinkModule();
+#endif
+
+#ifdef FLAMINGO_SLINK
+        new SerialModule();
+#endif
+
+#else
 #if !MESHTASTIC_EXCLUDE_SERIAL
     if (moduleConfig.has_serial && moduleConfig.serial.enabled &&
         config.display.displaymode != meshtastic_Config_DisplayConfig_DisplayMode_COLOR) {
         new SerialModule();
     }
+#endif
+
 #endif
 #endif
 #ifdef ARCH_ESP32
@@ -294,10 +333,19 @@ void setupModules()
 #if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
     externalNotificationModule = new ExternalNotificationModule();
 #endif
+#ifdef FLAMINGO
+#if !MESHTASTIC_EXCLUDE_RANGETEST
+        if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
+            new RangeTestModule();
+#endif
+#else
+
 #if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
     if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
         new RangeTestModule();
 #endif
+#endif
+
     // NOTE! This module must be added LAST because it likes to check for replies from other modules and avoid sending extra
     // acks
     routingModule = new RoutingModule();

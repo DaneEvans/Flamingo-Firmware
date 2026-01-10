@@ -245,7 +245,8 @@ uint32_t RadioInterface::getPacketTime(const meshtastic_MeshPacket *p, bool rece
 /** The delay to use for retransmitting dropped packets */
 uint32_t RadioInterface::getRetransmissionMsec(const meshtastic_MeshPacket *p)
 {
-    size_t numbytes = pb_encode_to_bytes(bytes, sizeof(bytes), &meshtastic_Data_msg, &p->decoded);
+    size_t numbytes =p->which_payload_variant == meshtastic_MeshPacket_decoded_tag ? 
+      pb_encode_to_bytes(bytes, sizeof(bytes), &meshtastic_Data_msg, &p->decoded) : p->encrypted.size;
     uint32_t packetAirtime = getPacketTime(numbytes + sizeof(PacketHeader));
     // Make sure enough time has elapsed for this packet to be sent and an ACK is received.
     // LOG_DEBUG("Waiting for flooding message with airtime %d and slotTime is %d", packetAirtime, slotTimeMsec);
@@ -385,7 +386,11 @@ void printPacket(const char *prefix, const meshtastic_MeshPacket *p)
 
 RadioInterface::RadioInterface()
 {
+#ifdef FLAMINGO
+    //assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
+#else
     assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
+#endif
 }
 
 bool RadioInterface::reconfigure()
@@ -689,6 +694,7 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
 
     // LOG_DEBUG("Send queued packet on mesh (txGood=%d,rxGood=%d,rxBad=%d)", rf95.txGood(), rf95.rxGood(), rf95.rxBad());
     assert(p->which_payload_variant == meshtastic_MeshPacket_encrypted_tag); // It should have already been encoded by now
+    LOG_DEBUG("TX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", p->from, p->to, p->id, p->channel, p->hop_start, p->hop_limit);
 
     radioBuffer.header.from = p->from;
     radioBuffer.header.to = p->to;
@@ -700,10 +706,19 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
         LOG_WARN("hop limit %d is too high, setting to %d", p->hop_limit, HOP_RELIABLE);
         p->hop_limit = HOP_RELIABLE;
     }
+#ifdef FLAMINGO
+    // hard code old hop limit to zero, old hop_start to 1 with 0x20 as initial value
+    radioBuffer.header.flags =
+        0x20 | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) | (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0);
+
+    radioBuffer.header.hop_limit = p->hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK;
+    radioBuffer.header.hop_start = p->hop_start & PACKET_FLAGS_HOP_START_MASK;
+    radioBuffer.header.magicnum = PACKET_HEADER_MAGIC_NUMBER;
+#else
     radioBuffer.header.flags =
         p->hop_limit | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) | (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0);
     radioBuffer.header.flags |= (p->hop_start << PACKET_FLAGS_HOP_START_SHIFT) & PACKET_FLAGS_HOP_START_MASK;
-
+#endif
     // if the sender nodenum is zero, that means uninitialized
     assert(radioBuffer.header.from);
     assert(p->encrypted.size <= sizeof(radioBuffer.payload));

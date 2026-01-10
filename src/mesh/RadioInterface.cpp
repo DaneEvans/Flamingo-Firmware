@@ -713,7 +713,13 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
 
     radioBuffer.header.hop_limit = p->hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK;
     radioBuffer.header.hop_start = p->hop_start & PACKET_FLAGS_HOP_START_MASK;
+#ifdef FLAMINGO_HOP_DEBUG
+    //highjack magic number to identify sender of this packet
+    radioBuffer.header.magicnum = get_myshortname_magicnumber();
+    LOG_DEBUG("TX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d, MagicNum:%d", p->from, p->to, p->id, p->channel, p->hop_start, p->hop_limit, radioBuffer.header.magicnum);
+#else
     radioBuffer.header.magicnum = PACKET_HEADER_MAGIC_NUMBER;
+#endif
 #else
     radioBuffer.header.flags =
         p->hop_limit | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) | (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0);

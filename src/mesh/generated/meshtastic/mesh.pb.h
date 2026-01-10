@@ -1542,7 +1542,6 @@ extern "C" {
 #define meshtastic_MeshPacket_relay_node_tag     19
 #define meshtastic_MeshPacket_tx_after_tag       20
 #define meshtastic_MeshPacket_transport_mechanism_tag 21
-#define meshtastic_MeshPacket_via_slink_tag      22
 #define meshtastic_NodeInfo_num_tag              1
 #define meshtastic_NodeInfo_user_tag             2
 #define meshtastic_NodeInfo_position_tag         3

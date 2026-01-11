@@ -126,8 +126,15 @@ int32_t RangeTestModule::runOnce()
             if (moduleConfig.range_test.sender) {
 #ifdef FLAMINGO
                 if (!getRtDynanmicEnable()) {
-                    LOG_INFO("Range Test Module is soft-disabled."); 
+                    LOG_INFO("Range Test Module is soft-disabled.");
+                    lastRtEnable = 0;
                     return (senderHeartbeat);
+                }
+
+                if (lastRtEnable != getRtDynanmicEnable()){
+                    // reset start time
+                    started = millis();
+                    lastRtEnable = getRtDynanmicEnable();
                 }
 #endif
                 // If sender

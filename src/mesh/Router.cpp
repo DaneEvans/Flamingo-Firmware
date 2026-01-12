@@ -513,21 +513,21 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
         if (p->decoded.has_bitfield)
             p->decoded.want_response |= p->decoded.bitfield & BITFIELD_WANT_RESPONSE_MASK;
 
-        /* Not actually ever used.
-        // Decompress if needed. jm
-        if (p->decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_COMPRESSED_APP) {
-            // Decompress the payload
-            char compressed_in[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
-            char decompressed_out[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
-            int decompressed_len;
+            /* Not actually ever used.
+            // Decompress if needed. jm
+            if (p->decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_COMPRESSED_APP) {
+                // Decompress the payload
+                char compressed_in[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
+                char decompressed_out[meshtastic_Constants_DATA_PAYLOAD_LEN] = {};
+                int decompressed_len;
 
-            memcpy(compressed_in, p->decoded.payload.bytes, p->decoded.payload.size);
+                memcpy(compressed_in, p->decoded.payload.bytes, p->decoded.payload.size);
 
-            decompressed_len = unishox2_decompress_simple(compressed_in, p->decoded.payload.size, decompressed_out);
+                decompressed_len = unishox2_decompress_simple(compressed_in, p->decoded.payload.size, decompressed_out);
 
-            // LOG_DEBUG("**Decompressed length - %d ", decompressed_len);
+                // LOG_DEBUG("**Decompressed length - %d ", decompressed_len);
 
-            memcpy(p->decoded.payload.bytes, decompressed_out, decompressed_len);
+                memcpy(p->decoded.payload.bytes, decompressed_out, decompressed_len);
 
             // Switch the port from PortNum_TEXT_MESSAGE_COMPRESSED_APP to PortNum_TEXT_MESSAGE_APP
             p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;

@@ -288,6 +288,12 @@ typedef enum _meshtastic_HardwareModel {
     meshtastic_HardwareModel_WISMESH_TAP_V2 = 116,
     /* RAK3401 */
     meshtastic_HardwareModel_RAK3401 = 117,
+    /* RAK6421 Hat+ */
+    meshtastic_HardwareModel_RAK6421 = 118,
+    /* Elecrow ThinkNode M4 */
+    meshtastic_HardwareModel_THINKNODE_M4 = 119,
+    /* Elecrow ThinkNode M6 */
+    meshtastic_HardwareModel_THINKNODE_M6 = 120,
     /* ------------------------------------------------------------------------------------------------------------------------------------------
  Reserved ID For developing private Ports. These will show up in live traffic sparsely, so we can use a high number. Keep it within 8 bits.
  ------------------------------------------------------------------------------------------------------------------------------------------ */
@@ -846,7 +852,11 @@ typedef struct _meshtastic_MeshPacket {
  Note: Our crypto implementation uses this field as well.
  See [crypto](/docs/overview/encryption) for details. */
     uint32_t from;
-    /* The (immediate) destination for this packet */
+    /* The (immediate) destination for this packet
+ If the value is 4,294,967,295 (maximum value of an unsigned 32bit integer), this indicates that the packet was
+ not destined for a specific node, but for a channel as indicated by the value of `channel` below.
+ If the value is another, this indicates that the packet was destined for a specific
+ node (i.e. a kind of "Direct Message" to this node) and not broadcast on a channel. */
     uint32_t to;
     /* (Usually) If set, this indicates the index in the secondary_channels table that this packet was sent/received on.
  If unset, packet was on the primary channel.
@@ -905,7 +915,10 @@ typedef struct _meshtastic_MeshPacket {
     meshtastic_MeshPacket_Delayed delayed;
     /* Describes whether this packet passed via MQTT somewhere along the path it currently took. */
     bool via_mqtt;
-
+#ifdef FLAMINGO
+    /* Describes whether this packet passed via the serial link somewhere along the path it currently took. */
+    bool via_slink;
+#endif
     /* Hop limit with which the original packet started. Sent via LoRa using three bits in the unencrypted header.
  When receiving a packet, the difference between hop_start and hop_limit gives how many hops it traveled. */
     uint8_t hop_start;

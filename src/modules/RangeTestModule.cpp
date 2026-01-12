@@ -38,7 +38,7 @@ uint32_t packetSequence = 0;
 #ifdef FLAMINGO
 
 #define SNR_BUFFER_SIZE 3    // 3 packets seem to be enough for a decent average
-#define SNR_MINIMUM 3.0     // send three beeps if below this threadhold
+#define SNR_MININMUM 1.0     // send three beeps if below this threadhold
 
 float snr_buffer[SNR_BUFFER_SIZE];  // SNR values of last SNR_BUFFER_SIZE packets
 float snr_last_average = 0.0;      // SNR average of last SNR_BUFFER_SIZE packets
@@ -99,6 +99,13 @@ int32_t RangeTestModule::runOnce()
                     LOG_INFO("Range Test Module is soft-disabled."); 
                     return (senderHeartbeat);
             }
+
+            snr_buffer_ptr = 0;
+            snr_buffer_count = 0;
+            for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++) snr_buffer[i] = 0;
+            return (5000);      // Sending first message 5 seconds after initialization.
+#else
+            firstTime = 0;
 
             snr_buffer_ptr = 0;
             snr_buffer_count = 0;

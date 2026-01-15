@@ -157,5 +157,9 @@ class NextHopRouter : public FloodingRouter
 
     /** Check if we should be rebroadcasting this packet if so, do so.
      *  @return true if we did rebroadcast */
+#ifdef FLAMINGO_MAX_REXMIT
+    bool perhapsRebroadcast(const meshtastic_MeshPacket *p);
+#else
     bool perhapsRebroadcast(const meshtastic_MeshPacket *p) override;
+#endif
 };

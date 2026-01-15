@@ -132,6 +132,7 @@ bool FloodingRouter::isRebroadcaster()
            config.device.rebroadcast_mode != meshtastic_Config_DeviceConfig_RebroadcastMode_NONE;
 }
 
+#ifdef FLAMINGO_MAX_REXMIT
 void FloodingRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p)
 {
     if (!isToUs(p) && (p->hop_limit > 0) && !isFromUs(p)) {
@@ -150,16 +151,16 @@ void FloodingRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p)
                 tosend->next_hop = NO_NEXT_HOP_PREFERENCE; // this should already be the case, but just in case
 
                 LOG_INFO("Rebroadcast received floodmsg");
-#ifdef FLAMINGO_MAX_REXMIT
+
                 // this method gets handed packets that have been seen recently and is a reliable router repeat
                 // do not add these to the retransmit queue, causes an infinite loop
                 bool isRepeated = p->hop_start > 0 && p->hop_start == p->hop_limit;
                 if (FLAMINGO_MAX_REXMIT > 0 && !isRepeated) {
-                    if ((!isFromUs(p) || !p->want_ack) && (p->hop_limit > 0 || p->want_ack)) {
+                    if ((!isFromUs(p) || !p->want_ack) &&  (p->hop_limit > 0 || p->want_ack)) {
                         startRetransmission(packetPool.allocCopy(*p)); // start retransmission for relayed packet
                     }
                 }
-#endif
+
                 // Note: we are careful to resend using the original senders node id
                 // We are careful not to call our hooked version of send() - because we don't want to check this again
                 Router::send(tosend);
@@ -171,6 +172,7 @@ void FloodingRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p)
         }
     }
 }
+#endif
 
 void FloodingRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtastic_Routing *c)
 {

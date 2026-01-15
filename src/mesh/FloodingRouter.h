@@ -106,6 +106,10 @@ class FloodingRouter : public Router
     constexpr static uint8_t NUM_INTERMEDIATE_RETX = FLAMINGO_MAX_REXMIT + 1;
     // The number of retransmissions the original sender will do
     constexpr static uint8_t NUM_RELIABLE_RETX = 3;
+
+private:
+    /* Check if we should rebroadcast this packet, and do so if needed */
+    void perhapsRebroadcast(const meshtastic_MeshPacket *p);
 #endif
 
   protected:
@@ -122,8 +126,11 @@ class FloodingRouter : public Router
      */
     virtual void sniffReceived(const meshtastic_MeshPacket *p, const meshtastic_Routing *c) override;
 
+#ifndef FLAMINGO_MAX_REXMIT
     /* Check if we should rebroadcast this packet, and do so if needed */
     virtual bool perhapsRebroadcast(const meshtastic_MeshPacket *p) = 0;
+#endif
+
 
     /* Check if we should handle an upgraded packet (with higher hop_limit)
      * @return true if we handled it (so stop processing)

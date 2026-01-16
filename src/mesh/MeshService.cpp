@@ -63,6 +63,27 @@ Allocator<meshtastic_QueueStatus> &queueStatusPool = staticQueueStatusPool;
 
 #include "Router.h"
 
+#ifdef FLAMINGO
+int8_t rtDynamicEnabled = 0;  // if '1', then send range test packets if range test enabled
+int8_t rtHop = 0;  // If '1', then range test packets will hop
+
+uint8_t getRtDynanmicEnable() {
+    return rtDynamicEnabled;
+}
+
+void setRtDynamicEnable(uint8_t v){
+    rtDynamicEnabled = v;
+}
+
+uint8_t getRtHop() {
+    return rtHop;
+}
+
+void setRtHop(uint8_t v) {
+    rtHop = v;
+}
+#endif
+
 MeshService::MeshService()
 #ifdef ARCH_PORTDUINO
     : toPhoneQueue(MAX_RX_TOPHONE), toPhoneQueueStatusQueue(MAX_RX_QUEUESTATUS_TOPHONE),
@@ -85,12 +106,11 @@ int MeshService::handleFromRadio(const meshtastic_MeshPacket *mp)
     powerFSM.trigger(EVENT_PACKET_FOR_PHONE); // Possibly keep the node from sleeping
 
     nodeDB->updateFrom(*mp); // update our DB state based off sniffing every RX packet from the radio
-    bool isPreferredRebroadcaster =
-        IS_ONE_OF(config.device.role, meshtastic_Config_DeviceConfig_Role_ROUTER, meshtastic_Config_DeviceConfig_Role_REPEATER);
+    bool isPreferredRebroadcaster = config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER;
     if (mp->which_payload_variant == meshtastic_MeshPacket_decoded_tag &&
         mp->decoded.portnum == meshtastic_PortNum_TELEMETRY_APP && mp->decoded.request_id > 0) {
-        LOG_DEBUG("Received telemetry response. Skip sending our NodeInfo"); //  because this potentially a Repeater which will
-                                                                             //  ignore our request for its NodeInfo
+        LOG_DEBUG("Received telemetry response. Skip sending our NodeInfo");
+        //  ignore our request for its NodeInfo
     } else if (mp->which_payload_variant == meshtastic_MeshPacket_decoded_tag && !nodeDB->getMeshNode(mp->from)->has_user &&
                nodeInfoModule && !isPreferredRebroadcaster && !nodeDB->isFull()) {
         if (airTime->isTxAllowedChannelUtil(true)) {

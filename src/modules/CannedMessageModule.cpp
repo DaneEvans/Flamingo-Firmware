@@ -13,12 +13,16 @@
 #include "detect/ScanI2C.h"
 #include "graphics/Screen.h"
 #include "graphics/SharedUIDisplay.h"
+#include "graphics/draw/NotificationRenderer.h"
 #include "graphics/emotes.h"
 #include "graphics/images.h"
 #include "main.h" // for cardkb_found
 #include "mesh/generated/meshtastic/cannedmessages.pb.h"
 #include "modules/AdminModule.h"
 #include "modules/ExternalNotificationModule.h" // for buzzer control
+#if HAS_TRACKBALL
+#include "input/TrackballInterruptImpl1.h"
+#endif
 #if !MESHTASTIC_EXCLUDE_GPS
 #include "GPS.h"
 #endif
@@ -38,6 +42,7 @@
 
 extern ScanI2C::DeviceAddress cardkb_found;
 extern bool graphics::isMuted;
+extern bool osk_found;
 
 static const char *cannedMessagesConfigFile = "/prefs/cannedConf.proto";
 static NodeNum lastDest = NODENUM_BROADCAST;
@@ -151,10 +156,13 @@ int CannedMessageModule::splitConfiguredMessages()
     int tempCount = 0;
     // Insert at position 0 (top)
     tempMessages[tempCount++] = "[Select Destination]";
-
 #if defined(USE_VIRTUAL_KEYBOARD)
-    // Add a "Free Text" entry at the top if using a keyboard
+    // Add a "Free Text" entry at the top if using a touch screen virtual keyboard
     tempMessages[tempCount++] = "[-- Free Text --]";
+#else
+    if (osk_found && screen) {
+        tempMessages[tempCount++] = "[-- Free Text --]";
+    }
 #endif
 
     // First message always starts at buffer start
@@ -247,7 +255,7 @@ void CannedMessageModule::updateDestinationSelectionList()
 
     for (size_t i = 0; i < numMeshNodes; ++i) {
         meshtastic_NodeInfoLite *node = nodeDB->getMeshNodeByIndex(i);
-        if (!node || node->num == myNodeNum)
+        if (!node || node->num == myNodeNum || !node->has_user || node->user.public_key.size != 32)
             continue;
 
         const String &nodeName = node->user.long_name;
@@ -340,6 +348,8 @@ int CannedMessageModule::handleInputEvent(const InputEvent *event)
     // Free text input mode: Handles character input, cancel, backspace, select, etc.
     case CANNED_MESSAGE_RUN_STATE_FREETEXT:
         return handleFreeTextInput(event); // All allowed input for this state
+
+    // Virtual keyboard mode: Show virtual keyboard and handle input
 
     // If sending, block all input except global/system (handled above)
     case CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE:
@@ -627,6 +637,56 @@ bool CannedMessageModule::handleMessageSelectorInput(const InputEvent *event, bo
             notifyObservers(&e);
             return true;
         }
+#else
+        if (strcmp(current, "[-- Free Text --]") == 0) {
+            if (osk_found && screen) {
+                char headerBuffer[64];
+                if (this->dest == NODENUM_BROADCAST) {
+                    snprintf(headerBuffer, sizeof(headerBuffer), "To: Broadcast@%s", channels.getName(this->channel));
+                } else {
+                    snprintf(headerBuffer, sizeof(headerBuffer), "To: %s", getNodeName(this->dest));
+                }
+                screen->showTextInput(headerBuffer, "", 300000, [this](const std::string &text) {
+                    if (!text.empty()) {
+                        this->freetext = text.c_str();
+                        this->payload = CANNED_MESSAGE_RUN_STATE_FREETEXT;
+                        runState = CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE;
+                        currentMessageIndex = -1;
+
+                        UIFrameEvent e;
+                        e.action = UIFrameEvent::Action::REGENERATE_FRAMESET;
+                        this->notifyObservers(&e);
+                        screen->forceDisplay();
+
+                        setIntervalFromNow(500);
+                        return;
+                    } else {
+                        // Don't delete virtual keyboard immediately - it might still be executing
+                        // Instead, just clear the callback and reset banner to stop input processing
+                        graphics::NotificationRenderer::textInputCallback = nullptr;
+                        graphics::NotificationRenderer::resetBanner();
+
+                        // Return to inactive state
+                        this->runState = CANNED_MESSAGE_RUN_STATE_INACTIVE;
+                        this->currentMessageIndex = -1;
+                        this->freetext = "";
+                        this->cursor = 0;
+
+                        // Force display update to show normal screen
+                        UIFrameEvent e;
+                        e.action = UIFrameEvent::Action::REGENERATE_FRAMESET;
+                        this->notifyObservers(&e);
+                        screen->forceDisplay();
+
+                        // Schedule cleanup for next loop iteration to ensure safe deletion
+                        setIntervalFromNow(50);
+                        return;
+                    }
+                });
+
+                return true;
+            }
+        }
 #endif
 
         // Normal canned message selection
@@ -776,6 +836,7 @@ bool CannedMessageModule::handleFreeTextInput(const InputEvent *event)
     if (event->inputEvent == INPUT_BROKER_BACK && this->freetext.length() > 0) {
         payload = 0x08;
         lastTouchMillis = millis();
+        requestFocus();
         runOnce();
         return true;
     }
@@ -784,6 +845,7 @@ bool CannedMessageModule::handleFreeTextInput(const InputEvent *event)
     if (event->inputEvent == INPUT_BROKER_LEFT) {
         payload = INPUT_BROKER_LEFT;
         lastTouchMillis = millis();
+        requestFocus();
         runOnce();
         return true;
     }
@@ -791,6 +853,7 @@ bool CannedMessageModule::handleFreeTextInput(const InputEvent *event)
     if (event->inputEvent == INPUT_BROKER_RIGHT) {
         payload = INPUT_BROKER_RIGHT;
         lastTouchMillis = millis();
+        requestFocus();
         runOnce();
         return true;
     }
@@ -913,9 +976,17 @@ void CannedMessageModule::sendText(NodeNum dest, ChannelIndex channel, const cha
     LOG_INFO("Send message id=%u, dest=%x, msg=%.*s", p->id, p->to, p->decoded.payload.size, p->decoded.payload.bytes);
 
     if (p->to != 0xffffffff) {
-        LOG_INFO("Proactively adding %x as favorite node", p->to);
-        nodeDB->set_favorite(true, p->to);
+        // Only add as favorite if our role is NOT CLIENT_BASE
+        if (config.device.role != 12) {
+            LOG_INFO("Proactively adding %x as favorite node", p->to);
+            nodeDB->set_favorite(true, p->to);
+        } else {
+            LOG_DEBUG("Not favoriting node %x as we are CLIENT_BASE role", p->to);
+        }
+
         screen->setFrames(graphics::Screen::FOCUS_PRESERVE);
+        p->pki_encrypted = true;
+        p->channel = 0;
     }
 
     // Send to mesh and phone (even if no phone connected, to track ACKs)
@@ -943,14 +1014,68 @@ int32_t CannedMessageModule::runOnce()
 
     // Normal module disable/idle handling
     if ((this->runState == CANNED_MESSAGE_RUN_STATE_DISABLED) || (this->runState == CANNED_MESSAGE_RUN_STATE_INACTIVE)) {
+        // Clean up virtual keyboard if needed when going inactive
+        if (graphics::NotificationRenderer::virtualKeyboard && graphics::NotificationRenderer::textInputCallback == nullptr) {
+            LOG_INFO("Performing delayed virtual keyboard cleanup");
+            delete graphics::NotificationRenderer::virtualKeyboard;
+            graphics::NotificationRenderer::virtualKeyboard = nullptr;
+        }
+
         temporaryMessage = "";
         return INT32_MAX;
     }
 
+    // Handle delayed virtual keyboard message sending
+    if (this->runState == CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE && this->payload == CANNED_MESSAGE_RUN_STATE_FREETEXT) {
+        // Virtual keyboard message sending case - text was not empty
+        if (this->freetext.length() > 0) {
+            LOG_INFO("Processing delayed virtual keyboard send: '%s'", this->freetext.c_str());
+            sendText(this->dest, this->channel, this->freetext.c_str(), true);
+
+            // Clean up virtual keyboard after sending
+            if (graphics::NotificationRenderer::virtualKeyboard) {
+                LOG_INFO("Cleaning up virtual keyboard after message send");
+                delete graphics::NotificationRenderer::virtualKeyboard;
+                graphics::NotificationRenderer::virtualKeyboard = nullptr;
+                graphics::NotificationRenderer::textInputCallback = nullptr;
+                graphics::NotificationRenderer::resetBanner();
+            }
+
+            // Clear payload to indicate virtual keyboard processing is complete
+            // But keep SENDING_ACTIVE state to show "Sending..." screen for 2 seconds
+            this->payload = 0;
+        } else {
+            // Empty message, just go inactive
+            LOG_INFO("Empty freetext detected in delayed processing, returning to inactive state");
+            this->runState = CANNED_MESSAGE_RUN_STATE_INACTIVE;
+        }
+
+        UIFrameEvent e;
+        e.action = UIFrameEvent::Action::REGENERATE_FRAMESET;
+        this->currentMessageIndex = -1;
+        this->freetext = "";
+        this->cursor = 0;
+        this->notifyObservers(&e);
+        return 2000;
+    }
+
     UIFrameEvent e;
-    if ((this->runState == CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE) ||
+    if ((this->runState == CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE && this->payload != 0 &&
+         this->payload != CANNED_MESSAGE_RUN_STATE_FREETEXT) ||
         (this->runState == CANNED_MESSAGE_RUN_STATE_ACK_NACK_RECEIVED) ||
         (this->runState == CANNED_MESSAGE_RUN_STATE_MESSAGE_SELECTION)) {
+        this->runState = CANNED_MESSAGE_RUN_STATE_INACTIVE;
+        temporaryMessage = "";
+        e.action = UIFrameEvent::Action::REGENERATE_FRAMESET;
+        this->currentMessageIndex = -1;
+        this->freetext = "";
+        this->cursor = 0;
+        this->notifyObservers(&e);
+    }
+    // Handle SENDING_ACTIVE state transition after virtual keyboard message
+    else if (this->runState == CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE && this->payload == 0) {
+        // This happens after virtual keyboard message sending is complete
+        LOG_INFO("Virtual keyboard message sending completed, returning to inactive state");
         this->runState = CANNED_MESSAGE_RUN_STATE_INACTIVE;
         temporaryMessage = "";
         e.action = UIFrameEvent::Action::REGENERATE_FRAMESET;
@@ -966,9 +1091,23 @@ int32_t CannedMessageModule::runOnce()
         this->freetext = "";
         this->cursor = 0;
         this->runState = CANNED_MESSAGE_RUN_STATE_INACTIVE;
+
+        // Clean up virtual keyboard if it exists during timeout
+        if (graphics::NotificationRenderer::virtualKeyboard) {
+            LOG_INFO("Cleaning up virtual keyboard due to module timeout");
+            delete graphics::NotificationRenderer::virtualKeyboard;
+            graphics::NotificationRenderer::virtualKeyboard = nullptr;
+            graphics::NotificationRenderer::textInputCallback = nullptr;
+            graphics::NotificationRenderer::resetBanner();
+        }
+
         this->notifyObservers(&e);
     } else if (this->runState == CANNED_MESSAGE_RUN_STATE_ACTION_SELECT) {
-        if (this->payload == CANNED_MESSAGE_RUN_STATE_FREETEXT) {
+        if (this->payload == 0) {
+            // [Exit] button pressed - return to inactive state
+            LOG_INFO("Processing [Exit] action - returning to inactive state");
+            this->runState = CANNED_MESSAGE_RUN_STATE_INACTIVE;
+        } else if (this->payload == CANNED_MESSAGE_RUN_STATE_FREETEXT) {
             if (this->freetext.length() > 0) {
                 sendText(this->dest, this->channel, this->freetext.c_str(), true);
                 this->runState = CANNED_MESSAGE_RUN_STATE_SENDING_ACTIVE;

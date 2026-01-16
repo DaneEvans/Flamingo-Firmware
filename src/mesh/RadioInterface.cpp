@@ -32,9 +32,12 @@ const RegionInfo regions[] = {
     RDEF(US, 902.0f, 928.0f, 100, 0, 30, true, false, false),
 
     /*
-        https://lora-alliance.org/wp-content/uploads/2020/11/lorawan_regional_parameters_v1.0.3reva_0.pdf
+        EN300220 ETSI V3.2.1 [Table B.1, Item H, p. 21]
+
+        https://www.etsi.org/deliver/etsi_en/300200_300299/30022002/03.02.01_60/en_30022002v030201p.pdf
+        FIXME: https://github.com/meshtastic/firmware/issues/3371
      */
-    RDEF(EU_433, 433.0f, 434.0f, 10, 0, 12, true, false, false),
+    RDEF(EU_433, 433.0f, 434.0f, 10, 0, 10, true, false, false),
 
     /*
        https://www.thethingsnetwork.org/docs/lorawan/duty-cycle/
@@ -227,33 +230,7 @@ The band is from 902 to 928 MHz. It mentions channel number and its respective c
 separated by 2.16 MHz with respect to the adjacent channels. Channel zero starts at 903.08 MHz center frequency.
 */
 
-/**
- * Calculate airtime per
- * https://www.rs-online.com/designspark/rel-assets/ds-assets/uploads/knowledge-items/application-notes-for-the-internet-of-things/LoRa%20Design%20Guide.pdf
- * section 4
- *
- * @return num msecs for the packet
- */
-uint32_t RadioInterface::getPacketTime(uint32_t pl)
-{
-    float bandwidthHz = bw * 1000.0f;
-    bool headDisable = false; // we currently always use the header
-    float tSym = (1 << sf) / bandwidthHz;
-
-    bool lowDataOptEn = tSym > 16e-3 ? true : false; // Needed if symbol time is >16ms
-
-    float tPreamble = (preambleLength + 4.25f) * tSym;
-    float numPayloadSym =
-        8 + max(ceilf(((8.0f * pl - 4 * sf + 28 + 16 - 20 * headDisable) / (4 * (sf - 2 * lowDataOptEn))) * cr), 0.0f);
-    float tPayload = numPayloadSym * tSym;
-    float tPacket = tPreamble + tPayload;
-
-    uint32_t msecs = tPacket * 1000;
-
-    return msecs;
-}
-
-uint32_t RadioInterface::getPacketTime(const meshtastic_MeshPacket *p)
+uint32_t RadioInterface::getPacketTime(const meshtastic_MeshPacket *p, bool received)
 {
     uint32_t pl = 0;
     if (p->which_payload_variant == meshtastic_MeshPacket_encrypted_tag) {
@@ -262,7 +239,7 @@ uint32_t RadioInterface::getPacketTime(const meshtastic_MeshPacket *p)
         size_t numbytes = pb_encode_to_bytes(bytes, sizeof(bytes), &meshtastic_Data_msg, &p->decoded);
         pl = numbytes + sizeof(PacketHeader);
     }
-    return getPacketTime(pl);
+    return getPacketTime(pl, received);
 }
 
 /** The delay to use for retransmitting dropped packets */
@@ -295,10 +272,10 @@ uint32_t RadioInterface::getTxDelayMsec()
 uint8_t RadioInterface::getCWsize(float snr)
 {
     // The minimum value for a LoRa SNR
-    const uint32_t SNR_MIN = -20;
+    const int32_t SNR_MIN = -20;
 
     // The maximum value for a LoRa SNR
-    const uint32_t SNR_MAX = 10;
+    const int32_t SNR_MAX = 10;
 
     return map(snr, SNR_MIN, SNR_MAX, CWmin, CWmax);
 }
@@ -314,9 +291,8 @@ uint32_t RadioInterface::getTxDelayMsecWeightedWorst(float snr)
 /** Returns true if we should rebroadcast early like a ROUTER */
 bool RadioInterface::shouldRebroadcastEarlyLikeRouter(meshtastic_MeshPacket *p)
 {
-    // If we are a ROUTER or REPEATER, we always rebroadcast early
-    if (config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER ||
-        config.device.role == meshtastic_Config_DeviceConfig_Role_REPEATER) {
+    // If we are a ROUTER, we always rebroadcast early
+    if (config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER) {
         return true;
     }
 
@@ -409,7 +385,11 @@ void printPacket(const char *prefix, const meshtastic_MeshPacket *p)
 
 RadioInterface::RadioInterface()
 {
+#ifdef FLAMINGO
+    //assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
+#else
     assert(sizeof(PacketHeader) == MESHTASTIC_HEADER_LENGTH); // make sure the compiler did what we expected
+#endif
 }
 
 bool RadioInterface::reconfigure()
@@ -622,8 +602,7 @@ void RadioInterface::applyModemConfig()
     saveFreq(freq + loraConfig.frequency_offset);
 
     slotTimeMsec = computeSlotTimeMsec();
-    preambleTimeMsec = getPacketTime((uint32_t)0);
-    maxPacketTimeMsec = getPacketTime(meshtastic_Constants_DATA_PAYLOAD_LEN + sizeof(PacketHeader));
+    preambleTimeMsec = preambleLength * (pow_of_2(sf) / bw);
 
     LOG_INFO("Radio freq=%.3f, config.lora.frequency_offset=%.3f", freq, loraConfig.frequency_offset);
     LOG_INFO("Set radio: region=%s, name=%s, config=%u, ch=%d, power=%d", myRegion->name, channelName, loraConfig.modem_preset,
@@ -633,7 +612,7 @@ void RadioInterface::applyModemConfig()
     LOG_INFO("numChannels: %d x %.3fkHz", numChannels, bw);
     LOG_INFO("channel_num: %d", channel_num + 1);
     LOG_INFO("frequency: %f", getFreq());
-    LOG_INFO("Slot time: %u msec", slotTimeMsec);
+    LOG_INFO("Slot time: %u msec, preamble time: %u msec", slotTimeMsec, preambleTimeMsec);
 }
 
 /** Slottime is the time to detect a transmission has started, consisting of:
@@ -671,11 +650,26 @@ void RadioInterface::limitPower(int8_t loraMaxPower)
         power = maxPower;
     }
 
-    if (TX_GAIN_LORA > 0) {
+#ifndef NUM_PA_POINTS
+    if (TX_GAIN_LORA > 0 && !devicestate.owner.is_licensed) {
         LOG_INFO("Requested Tx power: %d dBm; Device LoRa Tx gain: %d dB", power, TX_GAIN_LORA);
         power -= TX_GAIN_LORA;
     }
-
+#else
+    if (!devicestate.owner.is_licensed) {
+        // we have an array of PA gain values.  Find the highest power setting that works.
+        const uint16_t tx_gain[NUM_PA_POINTS] = {TX_GAIN_LORA};
+        for (int radio_dbm = 0; radio_dbm < NUM_PA_POINTS; radio_dbm++) {
+            if (((radio_dbm + tx_gain[radio_dbm]) > power) ||
+                ((radio_dbm == (NUM_PA_POINTS - 1)) && ((radio_dbm + tx_gain[radio_dbm]) <= power))) {
+                // we've exceeded the power limit, or hit the max we can do
+                LOG_INFO("Requested Tx power: %d dBm; Device LoRa Tx gain: %d dB", power, tx_gain[radio_dbm]);
+                power -= tx_gain[radio_dbm];
+                break;
+            }
+        }
+    }
+#endif
     if (power > loraMaxPower) // Clamp power to maximum defined level
         power = loraMaxPower;
 
@@ -699,6 +693,7 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
 
     // LOG_DEBUG("Send queued packet on mesh (txGood=%d,rxGood=%d,rxBad=%d)", rf95.txGood(), rf95.rxGood(), rf95.rxBad());
     assert(p->which_payload_variant == meshtastic_MeshPacket_encrypted_tag); // It should have already been encoded by now
+    LOG_DEBUG("TX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", p->from, p->to, p->id, p->channel, p->hop_start, p->hop_limit);
 
     radioBuffer.header.from = p->from;
     radioBuffer.header.to = p->to;
@@ -710,10 +705,19 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
         LOG_WARN("hop limit %d is too high, setting to %d", p->hop_limit, HOP_RELIABLE);
         p->hop_limit = HOP_RELIABLE;
     }
+#ifdef FLAMINGO
+    // hard code old hop limit to zero, old hop_start to 1 with 0x20 as initial value
+    radioBuffer.header.flags =
+        0x20 | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) | (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0);
+
+    radioBuffer.header.hop_limit = p->hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK;
+    radioBuffer.header.hop_start = p->hop_start & PACKET_FLAGS_HOP_START_MASK;
+    radioBuffer.header.magicnum = PACKET_HEADER_MAGIC_NUMBER;
+#else
     radioBuffer.header.flags =
         p->hop_limit | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) | (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0);
     radioBuffer.header.flags |= (p->hop_start << PACKET_FLAGS_HOP_START_SHIFT) & PACKET_FLAGS_HOP_START_MASK;
-
+#endif
     // if the sender nodenum is zero, that means uninitialized
     assert(radioBuffer.header.from);
     assert(p->encrypted.size <= sizeof(radioBuffer.payload));

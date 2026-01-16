@@ -116,16 +116,21 @@ bool RadioLibInterface::receiveDetected(uint16_t irq, ulong syncWordHeaderValidF
     if (detected) {
         if (!activeReceiveStart) {
             activeReceiveStart = millis();
-        } else if (!Throttle::isWithinTimespanMs(activeReceiveStart, 2 * preambleTimeMsec) && !(irq & syncWordHeaderValidFlag)) {
-            // The HEADER_VALID flag should be set by now if it was really a packet, so ignore PREAMBLE_DETECTED flag
-            activeReceiveStart = 0;
-            LOG_DEBUG("Ignore false preamble detection");
-            return false;
-        } else if (!Throttle::isWithinTimespanMs(activeReceiveStart, maxPacketTimeMsec)) {
-            // We should have gotten an RX_DONE IRQ by now if it was really a packet, so ignore HEADER_VALID flag
-            activeReceiveStart = 0;
-            LOG_DEBUG("Ignore false header detection");
-            return false;
+        } else if (!Throttle::isWithinTimespanMs(activeReceiveStart, 2 * preambleTimeMsec)) {
+            if (!(irq & syncWordHeaderValidFlag)) {
+                // The HEADER_VALID flag should be set by now if it was really a packet, so ignore PREAMBLE_DETECTED flag
+                activeReceiveStart = 0;
+                LOG_DEBUG("Ignore false preamble detection");
+                return false;
+            } else {
+                uint32_t maxPacketTimeMsec = getPacketTime(meshtastic_Constants_DATA_PAYLOAD_LEN + sizeof(PacketHeader));
+                if (!Throttle::isWithinTimespanMs(activeReceiveStart, maxPacketTimeMsec)) {
+                    // We should have gotten an RX_DONE IRQ by now if it was really a packet, so ignore HEADER_VALID flag
+                    activeReceiveStart = 0;
+                    LOG_DEBUG("Ignore false header detection");
+                    return false;
+                }
+            }
         }
     }
     return detected;
@@ -172,7 +177,12 @@ ErrorCode RadioLibInterface::send(meshtastic_MeshPacket *p)
     printPacket("enqueue for send", p);
 
     LOG_DEBUG("txGood=%d,txRelay=%d,rxGood=%d,rxBad=%d", txGood, txRelay, rxGood, rxBad);
-    ErrorCode res = txQueue.enqueue(p) ? ERRNO_OK : ERRNO_UNKNOWN;
+    bool dropped = false;
+    ErrorCode res = txQueue.enqueue(p, &dropped) ? ERRNO_OK : ERRNO_UNKNOWN;
+
+    if (dropped) {
+        txDrop++;
+    }
 
     if (res != ERRNO_OK) { // we weren't able to queue it, so we must drop it to prevent leaks
         packetPool.release(p);
@@ -279,12 +289,7 @@ void RadioLibInterface::onNotify(uint32_t notification)
                         // actual transmission as short as possible
                         txp = txQueue.dequeue();
                         assert(txp);
-                        bool sent = startSend(txp);
-                        if (sent) {
-                            // Packet has been sent, count it toward our TX airtime utilization.
-                            uint32_t xmitMsec = getPacketTime(txp);
-                            airTime->logAirtime(TX_LOG, xmitMsec);
-                        }
+                        startSend(txp);
                         LOG_DEBUG("%d packets remain in the TX queue", txQueue.getMaxLen() - txQueue.getFree());
                     }
                 }
@@ -354,13 +359,37 @@ void RadioLibInterface::clampToLateRebroadcastWindow(NodeNum from, PacketId id)
     meshtastic_MeshPacket *p = txQueue.remove(from, id, true, false);
     if (p) {
         p->tx_after = millis() + getTxDelayMsecWeightedWorst(p->rx_snr);
-        if (txQueue.enqueue(p)) {
+        bool dropped = false;
+        if (txQueue.enqueue(p, &dropped)) {
             LOG_DEBUG("Move existing queued packet to the late rebroadcast window %dms from now", p->tx_after - millis());
         } else {
             packetPool.release(p);
         }
+        if (dropped) {
+            txDrop++;
+        }
     }
 }
+
+/**
+ * If there is a packet pending TX in the queue with a worse hop limit, remove it pending replacement with a better version
+ * @return Whether a pending packet was removed
+ */
+bool RadioLibInterface::removePendingTXPacket(NodeNum from, PacketId id, uint32_t hop_limit_lt)
+{
+    meshtastic_MeshPacket *p = txQueue.remove(from, id, true, true, hop_limit_lt);
+    if (p) {
+        LOG_DEBUG("Dropping pending-TX packet 0x%08x with hop limit %d", p->id, p->hop_limit);
+        packetPool.release(p);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Remove a packet that is eligible for replacement from the TX queue
+ */
+// void RadioLibInterface::removePending
 
 void RadioLibInterface::handleTransmitInterrupt()
 {
@@ -379,6 +408,10 @@ void RadioLibInterface::completeSending()
     sendingPacket = NULL;
 
     if (p) {
+        // Packet has been sent, count it toward our TX airtime utilization.
+        uint32_t xmitMsec = getPacketTime(p);
+        airTime->logAirtime(TX_LOG, xmitMsec);
+
         txGood++;
         if (!isFromUs(p))
             txRelay++;
@@ -391,8 +424,6 @@ void RadioLibInterface::completeSending()
 
 void RadioLibInterface::handleReceiveInterrupt()
 {
-    uint32_t xmitMsec;
-
     // when this is called, we should be in receive mode - if we are not, just jump out instead of bombing. Possible Race
     // Condition?
     if (!isReceiving) {
@@ -405,12 +436,12 @@ void RadioLibInterface::handleReceiveInterrupt()
     // read the number of actually received bytes
     size_t length = iface->getPacketLength();
 
-    xmitMsec = getPacketTime(length);
+    uint32_t rxMsec = getPacketTime(length, true);
 
 #ifndef DISABLE_WELCOME_UNSET
     if (config.lora.region == meshtastic_Config_LoRaConfig_RegionCode_UNSET) {
         LOG_WARN("lora rx disabled: Region unset");
-        airTime->logAirtime(RX_ALL_LOG, xmitMsec);
+        airTime->logAirtime(RX_ALL_LOG, rxMsec);
         return;
     }
 #endif
@@ -422,10 +453,11 @@ void RadioLibInterface::handleReceiveInterrupt()
     }
 #endif
     if (state != RADIOLIB_ERR_NONE) {
-        LOG_ERROR("Ignore received packet due to error=%d", state);
+        LOG_ERROR("Ignore received packet due to error=%d (maybe to=0x%08x, from=0x%08x, flags=0x%02x)", state,
+                  radioBuffer.header.to, radioBuffer.header.from, radioBuffer.header.flags);
         rxBad++;
 
-        airTime->logAirtime(RX_ALL_LOG, xmitMsec);
+        airTime->logAirtime(RX_ALL_LOG, rxMsec);
 
     } else {
         // Skip the 4 headers that are at the beginning of the rxBuf
@@ -435,7 +467,7 @@ void RadioLibInterface::handleReceiveInterrupt()
         if (payloadLen < 0) {
             LOG_WARN("Ignore received packet too short");
             rxBad++;
-            airTime->logAirtime(RX_ALL_LOG, xmitMsec);
+            airTime->logAirtime(RX_ALL_LOG, rxMsec);
         } else {
             rxGood++;
             // altered packet with "from == 0" can do Remote Node Administration without permission
@@ -443,6 +475,12 @@ void RadioLibInterface::handleReceiveInterrupt()
                 LOG_WARN("Ignore received packet without sender");
                 return;
             }
+#ifdef FLAMINGO
+            if (radioBuffer.header.magicnum != PACKET_HEADER_MAGIC_NUMBER) {
+                LOG_INFO("Dropping received packet for magic number mismatch");
+                return;
+            }
+#endif
 
             // Note: we deliver _all_ packets to our router (i.e. our interface is intentionally promiscuous).
             // This allows the router and other apps on our node to sniff packets (usually routing) between other
@@ -454,15 +492,23 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->to = radioBuffer.header.to;
             mp->id = radioBuffer.header.id;
             mp->channel = radioBuffer.header.channel;
+#ifdef FLAMINGO
+            //assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
+            mp->hop_limit = radioBuffer.header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK ;
+            mp->hop_start = radioBuffer.header.hop_start & PACKET_FLAGS_HOP_START_MASK ;
+#else
             assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
             mp->hop_limit = radioBuffer.header.flags & PACKET_FLAGS_HOP_LIMIT_MASK;
             mp->hop_start = (radioBuffer.header.flags & PACKET_FLAGS_HOP_START_MASK) >> PACKET_FLAGS_HOP_START_SHIFT;
+#endif
             mp->want_ack = !!(radioBuffer.header.flags & PACKET_FLAGS_WANT_ACK_MASK);
             mp->via_mqtt = !!(radioBuffer.header.flags & PACKET_FLAGS_VIA_MQTT_MASK);
             // If hop_start is not set, next_hop and relay_node are invalid (firmware <2.3)
             mp->next_hop = mp->hop_start == 0 ? NO_NEXT_HOP_PREFERENCE : radioBuffer.header.next_hop;
             mp->relay_node = mp->hop_start == 0 ? NO_RELAY_NODE : radioBuffer.header.relay_node;
-
+#ifdef FLAMINGO
+            LOG_DEBUG("RX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", mp->from, mp->to, mp->id, mp->channel, mp->hop_start, mp->hop_limit);
+#endif
             addReceiveMetadata(mp);
 
             mp->which_payload_variant =
@@ -473,7 +519,7 @@ void RadioLibInterface::handleReceiveInterrupt()
 
             printPacket("Lora RX", mp);
 
-            airTime->logAirtime(RX_LOG, xmitMsec);
+            airTime->logAirtime(RX_LOG, rxMsec);
 
             deliverToReceiver(mp);
         }

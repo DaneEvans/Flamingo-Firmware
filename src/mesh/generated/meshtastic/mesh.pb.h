@@ -253,8 +253,8 @@ typedef enum _meshtastic_HardwareModel {
     meshtastic_HardwareModel_SEEED_WIO_TRACKER_L1 = 99,
     /* Seeed Tracker L1 EINK driver */
     meshtastic_HardwareModel_SEEED_WIO_TRACKER_L1_EINK = 100,
-    /* Reserved ID for future and past use */
-    meshtastic_HardwareModel_QWANTZ_TINY_ARMS = 101,
+    /* Muzi Works R1 Neo */
+    meshtastic_HardwareModel_MUZI_R1_NEO = 101,
     /* Lilygo T-Deck Pro */
     meshtastic_HardwareModel_T_DECK_PRO = 102,
     /* Lilygo TLora Pager */
@@ -278,6 +278,22 @@ typedef enum _meshtastic_HardwareModel {
     meshtastic_HardwareModel_M5STACK_C6L = 111,
     /* M5Stack Cardputer Adv */
     meshtastic_HardwareModel_M5STACK_CARDPUTER_ADV = 112,
+    /* ESP32S3 main controller with GPS and TFT screen. */
+    meshtastic_HardwareModel_HELTEC_WIRELESS_TRACKER_V2 = 113,
+    /* LilyGo T-Watch Ultra */
+    meshtastic_HardwareModel_T_WATCH_ULTRA = 114,
+    /* Elecrow ThinkNode M3 */
+    meshtastic_HardwareModel_THINKNODE_M3 = 115,
+    /* RAK WISMESH_TAP_V2 with ESP32-S3 CPU */
+    meshtastic_HardwareModel_WISMESH_TAP_V2 = 116,
+    /* RAK3401 */
+    meshtastic_HardwareModel_RAK3401 = 117,
+    /* RAK6421 Hat+ */
+    meshtastic_HardwareModel_RAK6421 = 118,
+    /* Elecrow ThinkNode M4 */
+    meshtastic_HardwareModel_THINKNODE_M4 = 119,
+    /* Elecrow ThinkNode M6 */
+    meshtastic_HardwareModel_THINKNODE_M6 = 120,
     /* ------------------------------------------------------------------------------------------------------------------------------------------
  Reserved ID For developing private Ports. These will show up in live traffic sparsely, so we can use a high number. Keep it within 8 bits.
  ------------------------------------------------------------------------------------------------------------------------------------------ */
@@ -687,6 +703,26 @@ typedef struct _meshtastic_User {
     bool is_unmessagable;
 } meshtastic_User;
 
+#ifdef FLAMINGO
+/* Had to increase the maximum supported hops for traceroute. 19 hops has been tested, fits in one packet*/
+/* To generate this, modify the proto definition in protobufs/mestastastic/mesh.options, regen protobufs */
+/* Modify the RouteDiscovery entries */
+/* A message used in a traceroute */
+typedef struct _meshtastic_RouteDiscovery {
+    /* The list of nodenums this packet has visited so far to the destination. */
+    pb_size_t route_count;
+    uint32_t route[19];
+    /* The list of SNRs (in dB, scaled by 4) in the route towards the destination. */
+    pb_size_t snr_towards_count;
+    int8_t snr_towards[19];
+    /* The list of nodenums the packet has visited on the way back from the destination. */
+    pb_size_t route_back_count;
+    uint32_t route_back[19];
+    /* The list of SNRs (in dB, scaled by 4) in the route back from the destination. */
+    pb_size_t snr_back_count;
+    int8_t snr_back[19];
+} meshtastic_RouteDiscovery;
+#else
 /* A message used in a traceroute */
 typedef struct _meshtastic_RouteDiscovery {
     /* The list of nodenums this packet has visited so far to the destination. */
@@ -702,6 +738,7 @@ typedef struct _meshtastic_RouteDiscovery {
     pb_size_t snr_back_count;
     int8_t snr_back[8];
 } meshtastic_RouteDiscovery;
+#endif 
 
 /* A Routing control Data packet handled by the routing module */
 typedef struct _meshtastic_Routing {
@@ -815,7 +852,11 @@ typedef struct _meshtastic_MeshPacket {
  Note: Our crypto implementation uses this field as well.
  See [crypto](/docs/overview/encryption) for details. */
     uint32_t from;
-    /* The (immediate) destination for this packet */
+    /* The (immediate) destination for this packet
+ If the value is 4,294,967,295 (maximum value of an unsigned 32bit integer), this indicates that the packet was
+ not destined for a specific node, but for a channel as indicated by the value of `channel` below.
+ If the value is another, this indicates that the packet was destined for a specific
+ node (i.e. a kind of "Direct Message" to this node) and not broadcast on a channel. */
     uint32_t to;
     /* (Usually) If set, this indicates the index in the secondary_channels table that this packet was sent/received on.
  If unset, packet was on the primary channel.
@@ -874,6 +915,10 @@ typedef struct _meshtastic_MeshPacket {
     meshtastic_MeshPacket_Delayed delayed;
     /* Describes whether this packet passed via MQTT somewhere along the path it currently took. */
     bool via_mqtt;
+#ifdef FLAMINGO
+    /* Describes whether this packet passed via the serial link somewhere along the path it currently took. */
+    bool via_slink;
+#endif
     /* Hop limit with which the original packet started. Sent via LoRa using three bits in the unencrypted header.
  When receiving a packet, the difference between hop_start and hop_limit gives how many hops it traveled. */
     uint8_t hop_start;
@@ -1356,7 +1401,11 @@ extern "C" {
 /* Initializer values for message structs */
 #define meshtastic_Position_init_default         {false, 0, false, 0, false, 0, 0, _meshtastic_Position_LocSource_MIN, _meshtastic_Position_AltSource_MIN, 0, 0, false, 0, false, 0, 0, 0, 0, 0, false, 0, false, 0, 0, 0, 0, 0, 0, 0, 0}
 #define meshtastic_User_init_default             {"", "", "", {0}, _meshtastic_HardwareModel_MIN, 0, _meshtastic_Config_DeviceConfig_Role_MIN, {0, {0}}, false, 0}
+#ifdef FLAMINGO
+#define meshtastic_RouteDiscovery_init_default   {0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#else
 #define meshtastic_RouteDiscovery_init_default   {0, {0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0}}
+#endif
 #define meshtastic_Routing_init_default          {0, {meshtastic_RouteDiscovery_init_default}}
 #define meshtastic_Data_init_default             {_meshtastic_PortNum_MIN, {0, {0}}, 0, 0, 0, 0, 0, 0, false, 0}
 #define meshtastic_KeyVerification_init_default  {0, {0, {0}}, {0, {0}}}
@@ -1387,7 +1436,11 @@ extern "C" {
 #define meshtastic_ChunkedPayloadResponse_init_default {0, 0, {0}}
 #define meshtastic_Position_init_zero            {false, 0, false, 0, false, 0, 0, _meshtastic_Position_LocSource_MIN, _meshtastic_Position_AltSource_MIN, 0, 0, false, 0, false, 0, 0, 0, 0, 0, false, 0, false, 0, 0, 0, 0, 0, 0, 0, 0}
 #define meshtastic_User_init_zero                {"", "", "", {0}, _meshtastic_HardwareModel_MIN, 0, _meshtastic_Config_DeviceConfig_Role_MIN, {0, {0}}, false, 0}
+#ifdef FLAMINGO
+#define meshtastic_RouteDiscovery_init_zero      {0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
+#else
 #define meshtastic_RouteDiscovery_init_zero      {0, {0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0}, 0, {0, 0, 0, 0, 0, 0, 0, 0}}
+#endif
 #define meshtastic_Routing_init_zero             {0, {meshtastic_RouteDiscovery_init_zero}}
 #define meshtastic_Data_init_zero                {_meshtastic_PortNum_MIN, {0, {0}}, 0, 0, 0, 0, 0, 0, false, 0}
 #define meshtastic_KeyVerification_init_zero     {0, {0, {0}}, {0, {0}}}
@@ -2022,7 +2075,11 @@ extern const pb_msgdesc_t meshtastic_ChunkedPayloadResponse_msg;
 /* Maximum encoded size of messages (where known) */
 /* meshtastic_resend_chunks_size depends on runtime parameters */
 /* meshtastic_ChunkedPayloadResponse_size depends on runtime parameters */
+#ifdef FLAMINGO
+#define MESHTASTIC_MESHTASTIC_MESH_PB_H_MAX_SIZE meshtastic_Routing_size
+#else
 #define MESHTASTIC_MESHTASTIC_MESH_PB_H_MAX_SIZE meshtastic_FromRadio_size
+#endif
 #define meshtastic_ChunkedPayload_size           245
 #define meshtastic_ClientNotification_size       482
 #define meshtastic_Compressed_size               239
@@ -2047,8 +2104,13 @@ extern const pb_msgdesc_t meshtastic_ChunkedPayloadResponse_msg;
 #define meshtastic_NodeRemoteHardwarePin_size    29
 #define meshtastic_Position_size                 144
 #define meshtastic_QueueStatus_size              23
+#ifdef FLAMINGO
+#define meshtastic_RouteDiscovery_size           608
+#define meshtastic_Routing_size                  611
+#else
 #define meshtastic_RouteDiscovery_size           256
 #define meshtastic_Routing_size                  259
+#endif
 #define meshtastic_ToRadio_size                  504
 #define meshtastic_User_size                     115
 #define meshtastic_Waypoint_size                 165

@@ -2,7 +2,7 @@
 
 These are included as a build flag eg. `-D FLAMINGO`
 
-```
+```yaml
 # Booleans (-D FLAMINGO)
 FLAMINGO - Change the packet headers / checksum and enable all of the rest of these changes
 FLAMINGO_SLINK - Add RS485 support
@@ -31,9 +31,7 @@ PIN_LED_CONN_R=n
 PIN_LED_CONN_G=n
 PIN_LED_CONN_B=n
 
-## The rs485 ones need to go in here too - or we need to use the serail pins rather than overrriding them.
-
-
+## The rs485 ones need to go in here too - or we need to use the serial pins rather than overrriding them.
 
 ```
 

@@ -172,7 +172,7 @@ int32_t SerialModule::runOnce()
     // moduleConfig.serial.txd = 20;
     // These next pins are RDX1, TXD1 on WishMesh  starter kit
     // We would use these if using the WisMesh + RS485 interface
-    moduleConfig.serial.rxd = 15; // FIXME: These should not be hardcoded. NSWCRS HW uses rx=19, tx=20  + enable on 21
+    moduleConfig.serial.rxd = 15;
     moduleConfig.serial.txd = 16;
     moduleConfig.serial.override_console_serial_port = false;
     moduleConfig.serial.mode = meshtastic_ModuleConfig_SerialConfig_Serial_Mode_DEFAULT;

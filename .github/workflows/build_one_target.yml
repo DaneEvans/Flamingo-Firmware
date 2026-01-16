@@ -46,7 +46,9 @@ jobs:
           BUILDTARGET: ${{ inputs.target }}
           MATRIXARCH: ${{ inputs.arch }}
         run: |
+          echo  "running"
           TARGETS=$(./bin/generate_ci_matrix.py ${{matrix.arch}} --level extra)
+          echo "targets made"
           if [ "$BUILDTARGET" = "" ]; then
             echo "Name: $GITHUB_REF_NAME" >> $GITHUB_STEP_SUMMARY
             echo "Base: $GITHUB_BASE_REF" >> $GITHUB_STEP_SUMMARY

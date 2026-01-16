@@ -38,7 +38,7 @@ uint32_t packetSequence = 0;
 #ifdef FLAMINGO
 
 #define SNR_BUFFER_SIZE 3    // 3 packets seem to be enough for a decent average
-#define SNR_MININMUM 1.0     // send three beeps if below this threadhold
+#define SNR_MINIMUM 3.0     // send three beeps if below this threadhold
 
 float snr_buffer[SNR_BUFFER_SIZE];  // SNR values of last SNR_BUFFER_SIZE packets
 float snr_last_average = 0.0;      // SNR average of last SNR_BUFFER_SIZE packets
@@ -126,8 +126,15 @@ int32_t RangeTestModule::runOnce()
             if (moduleConfig.range_test.sender) {
 #ifdef FLAMINGO
                 if (!getRtDynanmicEnable()) {
-                    LOG_INFO("Range Test Module is soft-disabled."); 
+                    LOG_INFO("Range Test Module is soft-disabled.");
+                    lastRtEnable = 0;
                     return (senderHeartbeat);
+                }
+
+                if (lastRtEnable != getRtDynanmicEnable()){
+                    // reset start time
+                    started = millis();
+                    lastRtEnable = getRtDynanmicEnable();
                 }
 #endif
                 // If sender
@@ -240,7 +247,7 @@ ProcessMessage RangeTestModuleRadio::handleReceived(const meshtastic_MeshPacket 
             snr_buffer_ptr++;
             if (snr_buffer_ptr >= SNR_BUFFER_SIZE) snr_buffer_ptr = 0; // wrap pointer
             uint8_t num_tones = 1;
-            if ((snr_buffer_count == SNR_BUFFER_SIZE) && snr_last_average < SNR_MININMUM) {
+            if ((snr_buffer_count == SNR_BUFFER_SIZE) && snr_last_average < SNR_MINIMUM) {
                  num_tones = 3; // set max tones regardless of RSSI value
             }
             else if (mp.rx_rssi < -110) {

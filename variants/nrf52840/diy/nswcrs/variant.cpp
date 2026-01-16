@@ -29,7 +29,7 @@ const uint32_t g_ADigitalPinMap[] = {
 
     // P1 (mod32)
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47};
-    
+
 void initVariant()
 {
     // LED1 & LED2
@@ -50,8 +50,6 @@ void initVariant()
     ledOff(PIN_LED_RT_R);
     digitalWrite(PIN_LED_RT_G, HIGH);
     digitalWrite(PIN_LED_CONN_G, HIGH);
-
-    
 
     // 3V3 Power Rail
     pinMode(PIN_3V3_EN, OUTPUT);

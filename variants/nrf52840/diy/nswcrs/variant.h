@@ -44,19 +44,8 @@ extern "C" {
 #define NUM_ANALOG_OUTPUTS (0)
 
 // LEDs
-//#define PIN_LED1 (35)  // 1.03   
-#define PIN_LED2 (35)  // 1.04 
-#define PIN_LED1 (36)  // 1.03   
-
-
-#define PIN_LED_RT_R (3)
-#define PIN_LED_RT_G (2)
-#define PIN_LED_RT_B (28) // no blue (resdnp)
-
-#define PIN_LED_CONN_R (30)
-#define PIN_LED_CONN_G (26)
-#define PIN_LED_CONN_B (29) // no blue (resdnp)
-
+#define PIN_LED2 (35) // 1.03 - HB
+#define PIN_LED1 (36) // 1.04 - Packet rx
 
 #define LED_BUILTIN PIN_LED1
 #define LED_CONN PIN_LED2
@@ -64,16 +53,26 @@ extern "C" {
 #define LED_GREEN PIN_LED1
 #define LED_BLUE PIN_LED2
 
+// Rangetest LED
+#define PIN_LED_RT_R (3)
+#define PIN_LED_RT_G (2)
+#define PIN_LED_RT_B (28) // no blue (resdnp)
+
+// Connectivity LED
+#define PIN_LED_CONN_R (30)
+#define PIN_LED_CONN_G (26)
+#define PIN_LED_CONN_B (29) // no blue (resdnp)
+
 #define LED_STATE_ON 1 // State when LED is litted
 
 /*
  * Buttons
  */
 
-#define PIN_BUTTON1 33 
+#define PIN_BUTTON1 33
 #define BUTTON_NEED_PULLUP
 // #define PIN_BUTTON2 9 // TP. io5
-#define PIN_BUTTON3 34 // man down 
+#define PIN_BUTTON3 34 // man down
 // #define PIN_BUTTON4 25
 
 /*
@@ -113,31 +112,31 @@ static const uint8_t AREF = PIN_AREF;
 /*
  * Serial interfaces
  */
+// RS485 or GPS
 #define PIN_SERIAL1_RX (15)
 #define PIN_SERIAL1_TX (16)
 
-// Connected to Jlink CDC
+// OpenLOG logger or extension
 #define PIN_SERIAL2_RX (19)
 #define PIN_SERIAL2_TX (20)
-
 
 /*
  * SPI Interfaces
  */
-#define SPI_INTERFACES_COUNT 2
+#define SPI_INTERFACES_COUNT 0
 
-#define PIN_SPI_MISO (45)
-#define PIN_SPI_MOSI (44)
-#define PIN_SPI_SCK (43)
+// #define PIN_SPI_MISO (45)
+// #define PIN_SPI_MOSI (44)
+// #define PIN_SPI_SCK (43)
 
-#define PIN_SPI1_MISO (29) // (0 + 29)
-#define PIN_SPI1_MOSI (30) // (0 + 30)
-#define PIN_SPI1_SCK (3)   // (0 + 3)
+// #define PIN_SPI1_MISO (29) // (0 + 29)
+// #define PIN_SPI1_MOSI (30) // (0 + 30)
+// #define PIN_SPI1_SCK (3)   // (0 + 3)
 
-static const uint8_t SS = 42;
-static const uint8_t MOSI = PIN_SPI_MOSI;
-static const uint8_t MISO = PIN_SPI_MISO;
-static const uint8_t SCK = PIN_SPI_SCK;
+// static const uint8_t SS = 42;
+// static const uint8_t MOSI = PIN_SPI_MOSI;
+// static const uint8_t MISO = PIN_SPI_MISO;
+// static const uint8_t SCK = PIN_SPI_SCK;
 
 /*
  * eink display pins
@@ -218,7 +217,7 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // air quality telemetry.  PIN_NFC2 doesn't seem to be used anywhere else in the codebase, but if
 // you're having problems with your node behaving weirdly when a RAK12039 board isn't connected,
 // try disabling this.
-#define PMSA003I_ENABLE_PIN PIN_NFC2
+// #define PMSA003I_ENABLE_PIN PIN_NFC2
 
 #define DETECTION_SENSOR_EN 4
 

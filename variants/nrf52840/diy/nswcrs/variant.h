@@ -112,11 +112,11 @@ static const uint8_t AREF = PIN_AREF;
 /*
  * Serial interfaces
  */
-// RS485 or GPS
+// OpenLOG logger or extension
 #define PIN_SERIAL1_RX (15)
 #define PIN_SERIAL1_TX (16)
 
-// OpenLOG logger or extension
+// RS485 or GPS
 #define PIN_SERIAL2_RX (19)
 #define PIN_SERIAL2_TX (20)
 

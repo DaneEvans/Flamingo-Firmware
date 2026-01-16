@@ -299,7 +299,7 @@ void setupModules()
 #ifdef FLAMINGO_BUZZER
     buzzerModule = new BuzzerModule();
 #endif
-#ifdef FLAMINGO_BLINKY
+#ifdef FLAMINGO_BLINKY || FLAMINGO_RT_LED || FLAMINGO_CONNECTION_LED
     blinkModule = new BlinkModule();
 #endif
 

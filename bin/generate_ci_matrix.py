@@ -38,7 +38,7 @@ for pio_env in pio_envs:
   # Intentionally fail if platform cannot be determined
   if not env_platform:
     print(f"Error: Could not determine platform for environment '{pio_env}'")
-    exit(1)
+    exit(53)
   # Store env details as a dictionary, and add to 'all_envs' list
   env = {
     "ci": {"board": pio_env, "platform": env_platform},

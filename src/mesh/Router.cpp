@@ -555,14 +555,14 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
                         // SNR Avg > 10: Green LED
                         rtColor = LEDColor::Green;
                         LOG_DEBUG("Range test LED: SNR_AVG=%.2f > 10, GREEN LED ON", snrAvg);
-                    } else if (snrAvg < 4.0f) {
-                        // SNR Avg < 4: Red LED
+                    } else if (snrAvg < 3.0f) {
+                        // SNR Avg < 3: Red LED
                         rtColor = LEDColor::Red;
-                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f < 4, RED LED ON", snrAvg);
+                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f < 3, RED LED ON", snrAvg);
                     } else {
-                        // Middle ground (4 <= SNR Avg <= 10): Amber (both LEDs)
+                        // Middle ground (3 <= SNR Avg <= 10): Amber (both LEDs)
                         rtColor = LEDColor::Amber;
-                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f (4-10), AMBER LED ON", snrAvg);
+                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f (3-10), AMBER LED ON", snrAvg);
                     }
 
                     if (blinkModule) {

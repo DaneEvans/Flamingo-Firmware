@@ -10,6 +10,9 @@
 #include "configuration.h"
 #ifdef FLAMINGO
 #include "RangeTestModule.h"
+#ifdef FLAMINGO_CONNECTION_LED
+#include "BlinkModule.h"
+#endif
 #endif
 
 #include "graphics/Screen.h"
@@ -74,6 +77,24 @@ void parseAdmin(pb_size_t size, char *payload)
             moduleConfig.range_test.sender = 60;
         }
     }
+#ifdef FLAMINGO_CONNECTION_LED
+    else if (strcmp("adled green", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED to Green");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Green);
+        }
+    } else if (strcmp("adled red", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED to Red");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Red);
+        }
+    } else if (strcmp("adled off", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED Off");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Off);
+        }
+    }
+#endif
 }
 
 #ifdef DEBUG_PORT
@@ -113,10 +134,8 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         }
         LOG_INFO("z=%s", textmsg);
     }
-    if (!isBroadcast(mp.to)) {
-        // Direct message, check if admin
-        parseAdmin(p.payload.size, (char *)p.payload.bytes);
-    }
+    // Check for admin commands on both direct messages and group messages
+    parseAdmin(p.payload.size, (char *)p.payload.bytes);
 
 #endif
 #else

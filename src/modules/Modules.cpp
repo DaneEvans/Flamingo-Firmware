@@ -341,16 +341,16 @@ void setupModules()
     externalNotificationModule = new ExternalNotificationModule();
 #endif
 
-// I've hacked this - random endifs etc to get a compile .
 #ifdef FLAMINGO
 #if !MESHTASTIC_EXCLUDE_RANGETEST
         if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
             new RangeTestModule();
 #endif
-#endif
+#else
 #if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
     if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
         new RangeTestModule();
+#endif
 #endif
     // NOTE! This module must be added LAST because it likes to check for replies from other modules and avoid sending extra
     // acks

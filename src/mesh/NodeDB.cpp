@@ -149,6 +149,33 @@ uint32_t get_st7789_id(uint8_t cs, uint8_t sck, uint8_t mosi, uint8_t dc, uint8_
 
 #endif
 
+#ifdef FLAMINGO_HOP_DEBUG
+void get_shortname_from_id(uint32_t id, char *namebuf) {
+    if (id == 0xffffffff) {
+        strncpy(namebuf,"BCST",4);
+    } else {
+        auto node = nodeDB->getMeshNode(id);
+        (node) ? strncpy(namebuf, node->user.short_name, 4) : strncpy(namebuf,"????",4);
+    }
+    namebuf[4] = 0;
+}
+
+uint16_t get_myshortname_magicnumber() {
+
+    uint16_t retval = 0;
+    auto node = nodeDB->getMeshNode(myNodeInfo.my_node_num);
+    const char *sender = (node) ? node->user.short_name : "????";
+
+    if ( sender[2] >= 0x30 && sender[2]  <= 0x39) {
+        retval = (sender[2] - 0x30) * 10;
+    }
+    if ( sender[3] >= 0x30 && sender[3]  <= 0x39) {
+        retval += (sender[3] - 0x30);
+    }
+    return retval;
+}
+#endif
+
 bool meshtastic_NodeDatabase_callback(pb_istream_t *istream, pb_ostream_t *ostream, const pb_field_iter_t *field)
 {
     if (ostream) {

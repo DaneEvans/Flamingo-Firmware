@@ -6,6 +6,11 @@
 #include <Arduino.h>
 #include <functional>
 
+#ifdef FLAMINGO
+extern float RangeTestGetSnrAverage();
+extern bool RangeTestIsValidSnrAverage();
+#endif 
+
 class RangeTestModule : private concurrency::OSThread
 {
     bool firstTime = 1;

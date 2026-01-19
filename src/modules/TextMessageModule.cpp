@@ -3,27 +3,36 @@
 #ifdef FLAMINGO
 #include "MeshTypes.h"
 #endif
+#include "MessageStore.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "buzz.h"
 #include "configuration.h"
 #ifdef FLAMINGO
 #include "RangeTestModule.h"
+#ifdef FLAMINGO_CONNECTION_LED
+#include "BlinkModule.h"
+#endif
 #endif
 
 #include "graphics/Screen.h"
+#include "graphics/SharedUIDisplay.h"
+#include "graphics/draw/MessageRenderer.h"
+#include "main.h"
 TextMessageModule *textMessageModule;
 
 #ifdef FLAMINGO
 #define MAX_ADMIN_MSG 31
 
-void parseAdmin(pb_size_t size, char* payload){
-    char local_payload[MAX_ADMIN_MSG+1];
+void parseAdmin(pb_size_t size, char *payload)
+{
+    char local_payload[MAX_ADMIN_MSG + 1];
     pb_size_t new_size;
-    if (size < 4) return;  // too short to be an ADMIN message
+    if (size < 4)
+        return; // too short to be an ADMIN message
 
     // Check for Alert Bell emojii, toggle RT if alert bell received
-    if (payload[0] == 0xF0 && payload[1] == 0x9F && payload[2] == 0x94 && payload[3] == 0x94 ) {
+    if (payload[0] == 0xF0 && payload[1] == 0x9F && payload[2] == 0x94 && payload[3] == 0x94) {
         if (getRtDynanmicEnable()) {
             LOG_INFO("Found Alert Bell, Dynamic Rangetest OFF ");
             setRtDynamicEnable(0);
@@ -34,7 +43,8 @@ void parseAdmin(pb_size_t size, char* payload){
         return;
     }
 
-    if (!( (payload[0] == 'A' || payload[0] == 'a') && (payload[1] == 'D' || payload[1] == 'd'))) return;
+    if (!((payload[0] == 'A' || payload[0] == 'a') && (payload[1] == 'D' || payload[1] == 'd')))
+        return;
     // this is an ADMIN message
     new_size = (size < MAX_ADMIN_MSG) ? size : MAX_ADMIN_MSG;
     strncpy(local_payload, payload, new_size);
@@ -44,36 +54,47 @@ void parseAdmin(pb_size_t size, char* payload){
         local_payload[i] = tolower(local_payload[i]);
     }
 
-
     if (strcmp("adrt on hop", local_payload) == 0) {
         LOG_INFO("Turning Dynamic Rangetest ON with hop");
         setRtDynamicEnable(1);
         setRtHop(1);
-    }
-    else if (strcmp("adrt on", local_payload) == 0) {
+    } else if (strcmp("adrt on", local_payload) == 0) {
         LOG_INFO("Turning Dynamic Rangetest ON");
         setRtDynamicEnable(1);
         setRtHop(0);
-    }
-    else if (strcmp("adrt off", local_payload) == 0) {
+    } else if (strcmp("adrt off", local_payload) == 0) {
         LOG_INFO("Turning Dynamic Rangetest OFF");
         setRtDynamicEnable(0);
-    }
-    else if (strncmp("adrt delay", local_payload, 10) == 0 && new_size >= 13) {
-        if (strncmp("15", local_payload+11, 2) == 0) {
+    } else if (strncmp("adrt delay", local_payload, 10) == 0 && new_size >= 13) {
+        if (strncmp("15", local_payload + 11, 2) == 0) {
             LOG_INFO("Rangetest delay is 15");
             moduleConfig.range_test.sender = 15;
-        } 
-        else if (strncmp("30", local_payload+11, 2) == 0) {
+        } else if (strncmp("30", local_payload + 11, 2) == 0) {
             LOG_INFO("Rangetest delay is 30");
             moduleConfig.range_test.sender = 30;
-        }
-        else if (strncmp("60", local_payload+11, 2) == 0) {
+        } else if (strncmp("60", local_payload + 11, 2) == 0) {
             LOG_INFO("Rangetest delay is 60");
             moduleConfig.range_test.sender = 60;
-        } 
+        }
     }
-
+#ifdef FLAMINGO_CONNECTION_LED
+    else if (strcmp("adled green", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED to Green");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Green);
+        }
+    } else if (strcmp("adled red", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED to Red");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Red);
+        }
+    } else if (strcmp("adled off", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED Off");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Off);
+        }
+    }
+#endif
 }
 
 #ifdef DEBUG_PORT
@@ -81,7 +102,6 @@ char textmsg[201];
 #endif
 
 #endif
-
 
 ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp)
 {
@@ -93,9 +113,9 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
     auto rssi = mp.rx_rssi;
     auto &p = mp.decoded;
     meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&mp));
-    
-    LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d",
-        mp.from, mp.id, n->user.long_name, mp.rx_snr, mp.hop_limit, mp.hop_start);
+
+    LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d", mp.from, mp.id,
+             n->user.long_name, mp.rx_snr, mp.hop_limit, mp.hop_start);
     uint16_t offset;
     uint16_t bytes_left = p.payload.size;
     bool do_loop = 1;
@@ -104,20 +124,18 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
     while (do_loop) {
         if (bytes_left <= 150) {
             memset(textmsg, 0, sizeof(textmsg));
-            strncpy(textmsg, (char *)(p.payload.bytes+offset), bytes_left);
+            strncpy(textmsg, (char *)(p.payload.bytes + offset), bytes_left);
             do_loop = 0;
         } else {
             memset(textmsg, 0, sizeof(textmsg));
-            strncpy(textmsg, (char *)(p.payload.bytes+offset), 150);
+            strncpy(textmsg, (char *)(p.payload.bytes + offset), 150);
             offset = offset + 150;
-            bytes_left = bytes_left-150;
+            bytes_left = bytes_left - 150;
         }
-        LOG_INFO("z=%s",textmsg);
+        LOG_INFO("z=%s", textmsg);
     }
-    if (!isBroadcast(mp.to)) {
-        // Direct message, check if admin
-        parseAdmin(p.payload.size, (char *)p.payload.bytes);
-    }
+    // Check for admin commands on both direct messages and group messages
+    parseAdmin(p.payload.size, (char *)p.payload.bytes);
 
 #endif
 #else
@@ -126,16 +144,30 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
     LOG_INFO("Received text msg from=0x%0x, id=0x%x, msg=%.*s", mp.from, mp.id, p.payload.size, p.payload.bytes);
 #endif
 #endif
+    // add packet ID to the rolling list of packets
+    textPacketList[textPacketListIndex] = mp.id;
+    textPacketListIndex = (textPacketListIndex + 1) % TEXT_PACKET_LIST_SIZE;
 
     // We only store/display messages destined for us.
-    // Keep a copy of the most recent text message.
     devicestate.rx_text_message = mp;
     devicestate.has_rx_text_message = true;
+    IF_SCREEN(
+        // Guard against running in MeshtasticUI or with no screen
+        if (config.display.displaymode != meshtastic_Config_DisplayConfig_DisplayMode_COLOR) {
+            // Store in the central message history
+            const StoredMessage &sm = messageStore.addFromPacket(mp);
 
+            // Pass message to renderer (banner + thread switching + scroll reset)
+            // Use the global Screen singleton to retrieve the current OLED display
+            auto *display = screen ? screen->getDisplayDevice() : nullptr;
+            graphics::MessageRenderer::handleNewMessage(display, sm, mp);
+        })
     // Only trigger screen wake if configuration allows it
     if (shouldWakeOnReceivedMessage()) {
         powerFSM.trigger(EVENT_RECEIVED_MSG);
     }
+
+    // Notify any observers (e.g. external modules that care about packets)
     notifyObservers(&mp);
 
     return ProcessMessage::CONTINUE; // Let others look at this message also if they want
@@ -144,4 +176,14 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
 bool TextMessageModule::wantPacket(const meshtastic_MeshPacket *p)
 {
     return MeshService::isTextPayload(p);
+}
+
+bool TextMessageModule::recentlySeen(uint32_t id)
+{
+    for (size_t i = 0; i < TEXT_PACKET_LIST_SIZE; i++) {
+        if (textPacketList[i] != 0 && textPacketList[i] == id) {
+            return true;
+        }
+    }
+    return false;
 }

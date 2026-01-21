@@ -44,8 +44,8 @@ extern "C" {
 #define NUM_ANALOG_OUTPUTS (0)
 
 // LEDs
-#define PIN_LED2 (35) // 1.03 - HB
-#define PIN_LED1 (36) // 1.04 - Packet rx
+#define PIN_LED1 (35) // 1.03 - HB
+#define PIN_LED2 (36) // 1.04 - Packet rx
 
 #define LED_BUILTIN PIN_LED1
 #define LED_CONN PIN_LED2
@@ -123,31 +123,31 @@ static const uint8_t AREF = PIN_AREF;
 /*
  * SPI Interfaces
  */
-#define SPI_INTERFACES_COUNT 0
+#define SPI_INTERFACES_COUNT 2
 
-// #define PIN_SPI_MISO (45)
-// #define PIN_SPI_MOSI (44)
-// #define PIN_SPI_SCK (43)
+#define PIN_SPI_MISO (45)
+#define PIN_SPI_MOSI (44)
+#define PIN_SPI_SCK (43)
 
-// #define PIN_SPI1_MISO (29) // (0 + 29)
-// #define PIN_SPI1_MOSI (30) // (0 + 30)
-// #define PIN_SPI1_SCK (3)   // (0 + 3)
+#define PIN_SPI1_MISO (29) // (0 + 29)
+#define PIN_SPI1_MOSI (30) // (0 + 30)
+#define PIN_SPI1_SCK (3)   // (0 + 3)
 
-// static const uint8_t SS = 42;
-// static const uint8_t MOSI = PIN_SPI_MOSI;
-// static const uint8_t MISO = PIN_SPI_MISO;
-// static const uint8_t SCK = PIN_SPI_SCK;
+static const uint8_t SS = 42;
+static const uint8_t MOSI = PIN_SPI_MOSI;
+static const uint8_t MISO = PIN_SPI_MISO;
+static const uint8_t SCK = PIN_SPI_SCK;
 
 /*
  * eink display pins
  */
 
-// #define PIN_EINK_CS (0 + 26)
-// #define PIN_EINK_BUSY (0 + 4)
-// #define PIN_EINK_DC (0 + 17)
-// #define PIN_EINK_RES (-1)
-// #define PIN_EINK_SCLK (0 + 3)
-// #define PIN_EINK_MOSI (0 + 30) // also called SDI
+#define PIN_EINK_CS (0 + 26)
+#define PIN_EINK_BUSY (0 + 4)
+#define PIN_EINK_DC (0 + 17)
+#define PIN_EINK_RES (-1)
+#define PIN_EINK_SCLK (0 + 3)
+#define PIN_EINK_MOSI (0 + 30) // also called SDI
 
 // #define USE_EINK
 

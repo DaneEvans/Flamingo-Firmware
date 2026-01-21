@@ -113,12 +113,12 @@ static const uint8_t AREF = PIN_AREF;
  * Serial interfaces
  */
 // RS485 or GPS
-#define PIN_SERIAL1_RX (15)
-#define PIN_SERIAL1_TX (16)
+#define PIN_SERIAL1_RX (20)
+#define PIN_SERIAL1_TX (19)
 
 // OpenLOG logger or extension
-#define PIN_SERIAL2_RX (19)
-#define PIN_SERIAL2_TX (20)
+#define PIN_SERIAL2_RX (16)
+#define PIN_SERIAL2_TX (15)
 
 /*
  * SPI Interfaces
@@ -262,13 +262,13 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // #define PIN_GPS_PPS (32 + 4)
 // Seems to be missing on this new board
 // #define PIN_GPS_PPS (32 + 4)  // Pulse per second input from the GPS
-#define GPS_TX_PIN (20) // This is for bits going TOWARDS the CPU
-#define GPS_RX_PIN (19) // This is for bits going TOWARDS the GPS
+// #define GPS_TX_PIN (20) // This is for bits going TOWARDS the CPU
+// #define GPS_RX_PIN (19) // This is for bits going TOWARDS the GPS
 
 #define GPS_THREAD_INTERVAL 50
 
-#define PIN_SERIAL1_RX GPS_TX_PIN
-#define PIN_SERIAL1_TX GPS_RX_PIN
+// #define PIN_SERIAL1_RX GPS_TX_PIN
+// #define PIN_SERIAL1_TX GPS_RX_PIN
 
 // Define pin to enable GPS toggle (set GPIO to LOW) via user button triple press
 

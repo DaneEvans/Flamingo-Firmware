@@ -379,7 +379,7 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
     }
 #ifdef FLAMINGO_SLINK
     if (moduleConfig.serial.enabled) {
-        serialModuleRadio->onSend(*p);
+        serialModuleRadio->onSend(p);
     }
 #endif
 #if HAS_UDP_MULTICAST

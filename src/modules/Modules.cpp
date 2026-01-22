@@ -106,7 +106,7 @@
 #include "modules/BuzzerModule.h"
 #endif
 
-#ifdef FLAMINGO_BLINKY || FLAMINGO_RT_LED || FLAMINGO_CONNECTION_LED
+#if defined(FLAMINGO_BLINKY) || defined(FLAMINGO_RT_LED) || defined(FLAMINGO_CONNECTION_LED)
 #include "modules/BlinkModule.h"
 #endif
 
@@ -299,7 +299,7 @@ void setupModules()
 #ifdef FLAMINGO_BUZZER
     buzzerModule = new BuzzerModule();
 #endif
-#ifdef FLAMINGO_BLINKY || FLAMINGO_RT_LED || FLAMINGO_CONNECTION_LED
+#if defined(FLAMINGO_BLINKY) || defined(FLAMINGO_RT_LED) || defined(FLAMINGO_CONNECTION_LED)
     blinkModule = new BlinkModule();
 #endif
 

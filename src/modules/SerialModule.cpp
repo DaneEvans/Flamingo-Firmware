@@ -1,5 +1,13 @@
 #if defined(FLAMINGO) && defined(FLAMINGO_SLINK)
 
+// Require pin definitions at compile time if not set in moduleConfig
+#ifndef FLAMINGO_SLINK_RXD
+#error "FLAMINGO_SLINK_RXD must be defined in platformio.ini build_flags (e.g., -DFLAMINGO_SLINK_RXD=15)"
+#endif
+#ifndef FLAMINGO_SLINK_TXD
+#error "FLAMINGO_SLINK_TXD must be defined in platformio.ini build_flags (e.g., -DFLAMINGO_SLINK_TXD=16)"
+#endif
+
 #include "SerialModule.h"
 #include "GeoCoord.h"
 #include "MeshService.h"
@@ -167,14 +175,13 @@ int32_t SerialModule::runOnce()
 {
 
     moduleConfig.serial.enabled = true;
-    // These pins are RDX0, TXD0 on WisMesh Pocket. Cannot use this in production
-    // as the WisMesh pocket has a GPS on UART1, which clashes with the RS485 board
-    // moduleConfig.serial.rxd = 19;
-    // moduleConfig.serial.txd = 20;
-    // These next pins are RDX1, TXD1 on WishMesh  starter kit
-    // We would use these if using the WisMesh + RS485 interface
-    moduleConfig.serial.rxd = 15;
-    moduleConfig.serial.txd = 16;
+    // Set pins: Priority 1 = moduleConfig (user config), Priority 2 = compile-time defines
+    if (!moduleConfig.serial.rxd) {
+        moduleConfig.serial.rxd = FLAMINGO_SLINK_RXD;
+    }
+    if (!moduleConfig.serial.txd) {
+        moduleConfig.serial.txd = FLAMINGO_SLINK_TXD;
+    }
     moduleConfig.serial.override_console_serial_port = false;
     moduleConfig.serial.mode = meshtastic_ModuleConfig_SerialConfig_Serial_Mode_DEFAULT;
     moduleConfig.serial.timeout = TIMEOUT;

@@ -113,8 +113,8 @@ static const uint8_t AREF = PIN_AREF;
  * Serial interfaces
  */
 // RS485 or GPS
-#define PIN_SERIAL1_RX (20)
-#define PIN_SERIAL1_TX (19)
+#define PIN_SERIAL1_RX (19)
+#define PIN_SERIAL1_TX (20)
 
 // OpenLOG logger or extension
 #define PIN_SERIAL2_RX (16)
@@ -259,11 +259,9 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // #define VEXT_ON_VALUE HIGH
 #define GPS_EN_ACTIVE HIGH
 // #define PIN_GPS_STANDBY (32 + 2) // An output to wake GPS, low means allow sleep, high means force wake
-// #define PIN_GPS_PPS (32 + 4)
-// Seems to be missing on this new board
 // #define PIN_GPS_PPS (32 + 4)  // Pulse per second input from the GPS
-// #define GPS_TX_PIN (20) // This is for bits going TOWARDS the CPU
-// #define GPS_RX_PIN (19) // This is for bits going TOWARDS the GPS
+#define GPS_TX_PIN (19) // This is for bits going TOWARDS the CPU
+#define GPS_RX_PIN (20) // This is for bits going TOWARDS the GPS
 
 #define GPS_THREAD_INTERVAL 50
 

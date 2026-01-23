@@ -3,7 +3,7 @@ name: Autobuild Flamingo Targets
 on:
   push:
     branches: [autobuilds]
-    tags: ["flamingo*"]
+    tags: [flamingo*]
   workflow_dispatch:
 
 concurrency:

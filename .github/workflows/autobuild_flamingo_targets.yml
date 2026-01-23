@@ -1,0 +1,47 @@
+name: Autobuild Flamingo Targets
+
+on:
+  push:
+    branches: [autobuilds]
+  workflow_dispatch:
+
+concurrency:
+  group: build-autobuilds-targets-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Get release version string
+        run: |
+          echo "long=$(./bin/buildinfo.py long)" >> $GITHUB_OUTPUT
+          echo "deb=$(./bin/buildinfo.py deb)" >> $GITHUB_OUTPUT
+        id: version
+        env:
+          BUILD_LOCATION: local
+    outputs:
+      long: ${{ steps.version.outputs.long }}
+      deb: ${{ steps.version.outputs.deb }}
+
+  build:
+    name: build-${{ matrix.target }}
+    needs: [version]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: nswcrs
+            platform: nrf52840
+          - target: nswcrs_flamingo
+            platform: nrf52840
+          # - target: heltec-v3_flamingo
+          #   platform: esp32s3
+    uses: ./.github/workflows/build_firmware.yml
+    with:
+      version: ${{ needs.version.outputs.long }}
+      platform: ${{ matrix.platform }}
+      pio_env: ${{ matrix.target }}

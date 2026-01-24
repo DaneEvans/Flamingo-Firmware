@@ -8,10 +8,12 @@
 #include <Arduino.h>
 #include <functional>
 
+#ifdef FLAMINGO_BLINKY
 #ifndef FLAMINGO_BLINKY_IO
 #define BLINK_PIN 17
 #else
 #define BLINK_PIN FLAMINGO_BLINKY_IO
+#endif
 #endif
 
 #ifdef FLAMINGO_RT_LED

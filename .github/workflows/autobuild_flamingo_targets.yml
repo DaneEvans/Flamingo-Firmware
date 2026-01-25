@@ -44,10 +44,10 @@ jobs:
           - target: nswcrs_flamingo_slink
             platform: nrf52840
           # removing these as they don't build successfully - suspect the 'upload' or the 'libdeps.'
-          - target: rak4631_flamingo
-            platform: nrf52840
-          - target: rak4631_slink
-            platform: nrf52840
+          # - target: rak4631_flamingo
+          #   platform: nrf52840
+          # - target: rak4631_slink
+          #   platform: nrf52840
           # - target: rak4631_buzzer
           #   platform: nrf52840
           # - target: rak4631_cavegen2

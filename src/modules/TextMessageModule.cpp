@@ -87,10 +87,69 @@ void parseAdmin(pb_size_t size, char* payload){
         if (blinkModule) {
             blinkModule->setConnectionLED(LEDColor::Red);
         }
+    } else if (strcmp("adled yellow", local_payload) == 0) {
+        LOG_INFO("Setting Connection LED to Yellow");
+        if (blinkModule) {
+            blinkModule->setConnectionLED(LEDColor::Amber);
+        }
     } else if (strcmp("adled off", local_payload) == 0) {
         LOG_INFO("Setting Connection LED Off");
         if (blinkModule) {
             blinkModule->setConnectionLED(LEDColor::Off);
+        }
+    } else if (strncmp("adled default ", local_payload, 14) == 0) {
+        char color_str[20];
+        if (sscanf(local_payload + 14, "%s", color_str) == 1) {
+            LEDColor color;
+            bool valid = false;
+            if (strcmp(color_str, "off") == 0) { color = LEDColor::Off; valid = true; }
+            else if (strcmp(color_str, "red") == 0) { color = LEDColor::Red; valid = true; }
+            else if (strcmp(color_str, "green") == 0) { color = LEDColor::Green; valid = true; }
+            else if (strcmp(color_str, "yellow") == 0 || strcmp(color_str, "amber") == 0) { color = LEDColor::Amber; valid = true; }
+            else if (strcmp(color_str, "blue") == 0) { color = LEDColor::Blue; valid = true; }
+            else if (strcmp(color_str, "purple") == 0) { color = LEDColor::Purple; valid = true; }
+            else if (strcmp(color_str, "teal") == 0) { color = LEDColor::Teal; valid = true; }
+            else if (strcmp(color_str, "white") == 0) { color = LEDColor::White; valid = true; }
+            if (valid) {
+                LOG_INFO("Setting Connection LED default to %s", color_str);
+                if (blinkModule) {
+                    blinkModule->setConnectionLEDDefault(color);
+                }
+            } else {
+                LOG_INFO("Invalid color for default: %s", color_str);
+            }
+        }
+    } else if (strncmp("adled ", local_payload, 6) == 0) {
+        char color_str[20];
+        unsigned long timeout = 0;
+        int num = sscanf(local_payload + 6, "%s %lu", color_str, &timeout);
+        if (num >= 1) {
+            LEDColor color;
+            bool valid = false;
+            if (strcmp(color_str, "off") == 0) { color = LEDColor::Off; valid = true; }
+            else if (strcmp(color_str, "red") == 0) { color = LEDColor::Red; valid = true; }
+            else if (strcmp(color_str, "green") == 0) { color = LEDColor::Green; valid = true; }
+            else if (strcmp(color_str, "yellow") == 0 || strcmp(color_str, "amber") == 0) { color = LEDColor::Amber; valid = true; }
+            else if (strcmp(color_str, "blue") == 0) { color = LEDColor::Blue; valid = true; }
+            else if (strcmp(color_str, "purple") == 0) { color = LEDColor::Purple; valid = true; }
+            else if (strcmp(color_str, "teal") == 0) { color = LEDColor::Teal; valid = true; }
+            else if (strcmp(color_str, "white") == 0) { color = LEDColor::White; valid = true; }
+            if (valid) {
+                if (num == 2 && timeout > 0) {
+                    timeout *= 1000; // Convert seconds to milliseconds
+                    LOG_INFO("Setting Connection LED to %s with timeout %lu seconds", color_str, timeout / 1000);
+                    if (blinkModule) {
+                        blinkModule->setConnectionLED_cooldown(color, timeout);
+                    }
+                } else if (num == 1) {
+                    LOG_INFO("Setting Connection LED to %s", color_str);
+                    if (blinkModule) {
+                        blinkModule->setConnectionLED(color);
+                    }
+                }
+            } else {
+                LOG_INFO("Invalid color: %s", color_str);
+            }
         }
     }
 #endif

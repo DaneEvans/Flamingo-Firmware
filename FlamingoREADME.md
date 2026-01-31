@@ -50,5 +50,9 @@ _When present the Rangetest LED, or buzzer will respond to these packets._
 ### Connectivity LED
 
 Sent by DM or on a channel (recommend the infra channel from the surface)
-`ADLED <Red | Green | off> ` Times out after 10 minutes?
-_Note this behaviour is still being tweaked_
+
+- `ADLED <color>` - Set the connection LED to the specified color. Supported colors: off, red, green, yellow/amber, blue, purple, teal, white. Times out after 10 minutes and returns to default.
+- `ADLED <color> <timeout>` - Set the connection LED to the specified color with a custom timeout in seconds before returning to default.
+- `ADLED default <color>` - Set the default color for the connection LED. Supported colors: off, red, green, yellow/amber, blue, purple, teal, white.
+
+_Note: This behavior is still being tweaked._

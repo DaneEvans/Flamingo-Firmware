@@ -76,8 +76,11 @@ class BlinkModule : private concurrency::OSThread
     bool connLedsInitialized = false;
     bool connLedsActive = false;
     unsigned long connLedControlStartTime = 0;
-    static constexpr unsigned long CONN_LED_TIMEOUT_MS = 60000; // 60 seconds (1 minute)
+    unsigned long connLedTimeoutMs = CONN_LED_TIMEOUT_MS;
+    static constexpr unsigned long CONN_LED_TIMEOUT_MS = 600000; // 10 minutes
     LEDColor connLedColor = LEDColor::Off;
+    LEDColor connLedDefaultColor = LEDColor::Off;
+    LEDColor connLedAfterColor = LEDColor::Off;
 #endif
 
   public:
@@ -92,8 +95,11 @@ class BlinkModule : private concurrency::OSThread
 #ifdef FLAMINGO_CONNECTION_LED
     // Connection LED control
     void setConnectionLED(LEDColor color);
+    void setConnectionLED_cooldown(LEDColor color, unsigned long afterMs = CONN_LED_TIMEOUT_MS);
+    void setConnectionLEDDefault(LEDColor color);
     void setConnectionLEDTimeout(unsigned long timeoutMs = CONN_LED_TIMEOUT_MS);
-#endif
+
+    #endif
 
   protected:
     virtual int32_t runOnce() override;

@@ -117,15 +117,39 @@ void BlinkModule::setConnectionLED(LEDColor color)
               PIN_LED_CONN_B);
     setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, color);
     connLedControlStartTime = millis();
-    connLedsActive = (color != LEDColor::Off);
+    connLedsActive = true;
+    connLedTimeoutMs = CONN_LED_TIMEOUT_MS;
+    connLedAfterColor = connLedDefaultColor;
     connLedColor = color;
     LOG_DEBUG("Connection LED set: active=%d, color=%d", connLedsActive, (int)color);
+}
+
+void BlinkModule::setConnectionLED_cooldown(LEDColor color, unsigned long afterMs)
+{
+    // Pins are initialized at startup, just set the color
+    LOG_DEBUG("setConnectionLED_cooldown called with color=%d, afterMs=%lu", (int)color, afterMs);
+    setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, color);
+    connLedControlStartTime = millis();
+    connLedsActive = true;
+    connLedTimeoutMs = afterMs;
+    connLedAfterColor = connLedDefaultColor;
+    connLedColor = color;
+    LOG_DEBUG("Connection LED set: active=%d, color=%d, timeout=%lu", connLedsActive, (int)color, afterMs);
+}
+
+void BlinkModule::setConnectionLEDDefault(LEDColor color)
+{
+    connLedDefaultColor = color;
+    setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, color);
+    connLedsActive = false; // permanent default
+    LOG_DEBUG("Connection LED default set to color=%d", (int)color);
 }
 
 void BlinkModule::setConnectionLEDTimeout(unsigned long timeoutMs)
 {
     connLedControlStartTime = millis();
     connLedsActive = true;
+    connLedTimeoutMs = timeoutMs;
     // Timeout is handled in runOnce()
 }
 #endif
@@ -181,8 +205,10 @@ int32_t BlinkModule::runOnce()
             digitalWrite(PIN_LED_CONN_B, LOW);
         }
         connLedsInitialized = true;
-        LOG_DEBUG("Connection LED pins initialized at startup (R=%d, G=%d, B=%d)", PIN_LED_CONN_R, PIN_LED_CONN_G,
-                  PIN_LED_CONN_B);
+        // Set to default color
+        setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, connLedDefaultColor);
+        LOG_DEBUG("Connection LED pins initialized at startup (R=%d, G=%d, B=%d), set to default color=%d", PIN_LED_CONN_R, PIN_LED_CONN_G,
+                  PIN_LED_CONN_B, (int)connLedDefaultColor);
 #endif
     }
 
@@ -204,10 +230,10 @@ int32_t BlinkModule::runOnce()
 #ifdef FLAMINGO_CONNECTION_LED
     if (connLedsActive && connLedsInitialized) {
         unsigned long elapsed = now - connLedControlStartTime;
-        if (elapsed >= CONN_LED_TIMEOUT_MS) {
-            setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, LEDColor::Off);
+        if (elapsed >= connLedTimeoutMs) {
+            setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, connLedAfterColor);
             connLedsActive = false;
-            LOG_DEBUG("Connection LEDs reset after timeout (elapsed: %lu ms)", elapsed);
+            LOG_DEBUG("Connection LEDs reset after timeout (elapsed: %lu ms) to color=%d", elapsed, (int)connLedAfterColor);
         }
     }
 #endif

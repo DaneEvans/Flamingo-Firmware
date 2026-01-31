@@ -27,6 +27,9 @@
 #if defined(FLAMINGO) && defined(FLAMINGO_BUZZER)
 #include "BuzzerModule.h"
 #endif
+#if defined(FLAMINGO) && defined(FLAMINGO_RT_LED)
+#include "BlinkModule.h"
+#endif
 
 RangeTestModule *rangeTestModule;
 RangeTestModuleRadio *rangeTestModuleRadio;
@@ -36,9 +39,11 @@ RangeTestModule::RangeTestModule() : concurrency::OSThread("RangeTest") {}
 uint32_t packetSequence = 0;
 
 #ifdef FLAMINGO
+#ifndef SNR_MINIMUM // SNR_MIN from config
+#define SNR_MINIMUM 3.0     // send three beeps if below this threadhold 
+#endif
 
 #define SNR_BUFFER_SIZE 3    // 3 packets seem to be enough for a decent average
-#define SNR_MINIMUM 3.0     // send three beeps if below this threadhold
 
 float snr_buffer[SNR_BUFFER_SIZE];  // SNR values of last SNR_BUFFER_SIZE packets
 float snr_last_average = 0.0;      // SNR average of last SNR_BUFFER_SIZE packets
@@ -256,8 +261,25 @@ ProcessMessage RangeTestModuleRadio::handleReceived(const meshtastic_MeshPacket 
             else if (mp.rx_rssi < -90) {
                 num_tones = 2;
             }
+            LOG_DEBUG("SNR calculated for LED or buzzer. : SNR_AVG=%.2f, RSSI= %i, tones=%i", snr_last_average,mp.rx_rssi,num_tones);
 #ifdef FLAMINGO_BUZZER
             buzzerModule->startTone(1, 250, 100, num_tones);
+#endif
+#ifdef FLAMINGO_RT_LED
+            LEDColor rtColor;
+
+            if (num_tones ==3) {
+                rtColor = LEDColor::Red;
+            } else if (num_tones == 2) {
+                rtColor = LEDColor::Amber;
+            } else if (num_tones == 1) {
+                rtColor = LEDColor::Green;
+            }
+            LOG_DEBUG("Range test LED: SNR_AVG=%.2f, RSSI= %i, tones=%i, colour=%i", snr_last_average,mp.rx_rssi,num_tones,rtColor);
+
+            if (blinkModule) {
+                blinkModule->setRangeTestLED(rtColor);
+            }
 #endif
 #endif
             /*

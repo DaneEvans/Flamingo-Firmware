@@ -77,27 +77,7 @@ void parseAdmin(pb_size_t size, char* payload){
         } 
     }
 #ifdef FLAMINGO_CONNECTION_LED
-    else if (strcmp("adled green", local_payload) == 0) {
-        LOG_INFO("Setting Connection LED to Green");
-        if (blinkModule) {
-            blinkModule->setConnectionLED(LEDColor::Green);
-        }
-    } else if (strcmp("adled red", local_payload) == 0) {
-        LOG_INFO("Setting Connection LED to Red");
-        if (blinkModule) {
-            blinkModule->setConnectionLED(LEDColor::Red);
-        }
-    } else if (strcmp("adled yellow", local_payload) == 0) {
-        LOG_INFO("Setting Connection LED to Yellow");
-        if (blinkModule) {
-            blinkModule->setConnectionLED(LEDColor::Amber);
-        }
-    } else if (strcmp("adled off", local_payload) == 0) {
-        LOG_INFO("Setting Connection LED Off");
-        if (blinkModule) {
-            blinkModule->setConnectionLED(LEDColor::Off);
-        }
-    } else if (strncmp("adled default ", local_payload, 14) == 0) {
+    else if (strncmp("adled default ", local_payload, 14) == 0) {
         char color_str[20];
         if (sscanf(local_payload + 14, "%s", color_str) == 1) {
             LEDColor color;

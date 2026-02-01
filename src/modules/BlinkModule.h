@@ -99,7 +99,7 @@ class BlinkModule : private concurrency::OSThread
     void setConnectionLEDDefault(LEDColor color);
     void setConnectionLEDTimeout(unsigned long timeoutMs = CONN_LED_TIMEOUT_MS);
 
-    #endif
+#endif
 
   protected:
     virtual int32_t runOnce() override;

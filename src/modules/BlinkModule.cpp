@@ -207,8 +207,8 @@ int32_t BlinkModule::runOnce()
         connLedsInitialized = true;
         // Set to default color
         setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, connLedDefaultColor);
-        LOG_DEBUG("Connection LED pins initialized at startup (R=%d, G=%d, B=%d), set to default color=%d", PIN_LED_CONN_R, PIN_LED_CONN_G,
-                  PIN_LED_CONN_B, (int)connLedDefaultColor);
+        LOG_DEBUG("Connection LED pins initialized at startup (R=%d, G=%d, B=%d), set to default color=%d", PIN_LED_CONN_R,
+                  PIN_LED_CONN_G, PIN_LED_CONN_B, (int)connLedDefaultColor);
 #endif
     }
 

@@ -51,7 +51,7 @@ void initVariant()
     ledOff(PIN_LED_RT_G);
     ledOff(PIN_LED_RT_B);
 
-    // Test Flamingo LEDS 
+    // Test Flamingo LEDS
     ledOn(PIN_LED_RT_R);
     ledOn(PIN_LED_CONN_R);
 

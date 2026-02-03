@@ -140,8 +140,6 @@ void BlinkModule::setConnectionLED_cooldown(LEDColor color, unsigned long afterM
 void BlinkModule::setConnectionLEDDefault(LEDColor color)
 {
     connLedDefaultColor = color;
-    setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, color);
-    connLedsActive = false; // permanent default
     LOG_DEBUG("Connection LED default set to color=%d", (int)color);
 }
 

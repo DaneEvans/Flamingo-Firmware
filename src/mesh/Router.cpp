@@ -23,7 +23,6 @@
 #include "serialization/MeshPacketSerializer.h"
 #endif
 #ifdef FLAMINGO
-#include "modules/BlinkModule.h"
 #include "modules/RangeTestModule.h"
 #ifdef FLAMINGO_SLINK
 #include "modules/SerialModule.h"
@@ -544,30 +543,6 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
                     if (extra > 0) {
                         p->decoded.payload.size = p->decoded.payload.size + extra;
                     }
-
-#ifdef FLAMINGO_RT_LED
-                    // Control LEDs based on SNR average using BlinkModule
-                    float snrAvg = RangeTestGetSnrAverage();
-                    LEDColor rtColor;
-
-                    if (snrAvg > 10.0f) {
-                        // SNR Avg > 10: Green LED
-                        rtColor = LEDColor::Green;
-                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f > 10, GREEN LED ON", snrAvg);
-                    } else if (snrAvg < 3.0f) {
-                        // SNR Avg < 3: Red LED
-                        rtColor = LEDColor::Red;
-                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f < 3, RED LED ON", snrAvg);
-                    } else {
-                        // Middle ground (3 <= SNR Avg <= 10): Amber (both LEDs)
-                        rtColor = LEDColor::Amber;
-                        LOG_DEBUG("Range test LED: SNR_AVG=%.2f (3-10), AMBER LED ON", snrAvg);
-                    }
-
-                    if (blinkModule) {
-                        blinkModule->setRangeTestLED(rtColor);
-                    }
-#endif
                 } else {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:n/a", p->rx_rssi, p->rx_snr);
                     if (extra > 0) {

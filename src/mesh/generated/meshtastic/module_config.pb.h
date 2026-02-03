@@ -85,7 +85,9 @@ typedef enum _meshtastic_ModuleConfig_SerialConfig_Serial_Mode {
     meshtastic_ModuleConfig_SerialConfig_Serial_Mode_VE_DIRECT = 7,
     /* Used to configure and view some parameters of MeshSolar.
 https://heltec.org/project/meshsolar/ */
-    meshtastic_ModuleConfig_SerialConfig_Serial_Mode_MS_CONFIG = 8
+    meshtastic_ModuleConfig_SerialConfig_Serial_Mode_MS_CONFIG = 8,
+    meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOG = 9,
+    meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOGTEXT = 10
 } meshtastic_ModuleConfig_SerialConfig_Serial_Mode;
 
 /* TODO: REPLACE */

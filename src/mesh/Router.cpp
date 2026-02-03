@@ -376,8 +376,8 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
 #if (defined(ARCH_ESP32) || defined(ARCH_NRF52) || defined(ARCH_RP2040) || defined(ARCH_STM32WL)) &&                             \
     !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
         if (moduleConfig.serial.enabled &&
-            (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOG ||
-             moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOGTEXT)) {
+            (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_SIMPLE ||
+             moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_TEXTMSG)) {
             SerialModule::logPacketClean(p_decoded);
         }
 #endif
@@ -764,8 +764,8 @@ void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
 #if (defined(ARCH_ESP32) || defined(ARCH_NRF52) || defined(ARCH_RP2040) || defined(ARCH_STM32WL)) &&                             \
     !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
         if (moduleConfig.serial.enabled &&
-            (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOG ||
-             moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOGTEXT)) {
+            (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_SIMPLE ||
+             moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_TEXTMSG)) {
             SerialModule::logPacketClean(p);
         }
 #endif

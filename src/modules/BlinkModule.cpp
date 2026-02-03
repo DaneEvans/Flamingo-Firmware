@@ -219,34 +219,34 @@ int32_t BlinkModule::runOnce()
        */
 
     switch (fsmState) {
-    case STATE_DEFAULT:
-        if (currentBlink != 0) {
-            // start a new Blink
-            LOG_INFO("Blink module, starting Blink");
-            blinkStarted = now;
-            blinkFinish = now + blinkDurationMSecs;
-            digitalWrite(BLINK_PIN, BLINK_ON);
-            fsmState = STATE_ON;
-        } else {
-            digitalWrite(BLINK_PIN, BLINK_OFF);
-        }
-        break;
-    case STATE_ON:
-        if (now > blinkFinish) {
-            fsmState = STATE_DEFAULT;
-            digitalWrite(BLINK_PIN, BLINK_OFF);
-            if (blinkPauseMSecs != 0) {
-                pauseFinish = now + blinkPauseMSecs;
-                fsmState = STATE_PAUSE;
-            }
-        }
-        break;
-    case STATE_PAUSE:
-        if (now > pauseFinish) {
-            fsmState = STATE_DEFAULT;
-            currentBlink = 1; // continuous blinks
-        }
-        break;
+    // case STATE_DEFAULT:
+    //     if (currentBlink != 0) {
+    //         // start a new Blink
+    //         LOG_INFO("Blink module, starting Blink");
+    //         blinkStarted = now;
+    //         blinkFinish = now + blinkDurationMSecs;
+    //         digitalWrite(BLINK_PIN, BLINK_ON);
+    //         fsmState = STATE_ON;
+    //     } else {
+    //         digitalWrite(BLINK_PIN, BLINK_OFF);
+    //     }
+    //     break;
+    // case STATE_ON:
+    //     if (now > blinkFinish) {
+    //         fsmState = STATE_DEFAULT;
+    //         digitalWrite(BLINK_PIN, BLINK_OFF);
+    //         if (blinkPauseMSecs != 0) {
+    //             pauseFinish = now + blinkPauseMSecs;
+    //             fsmState = STATE_PAUSE;
+    //         }
+    //     }
+    //     break;
+    // case STATE_PAUSE:
+    //     if (now > pauseFinish) {
+    //         fsmState = STATE_DEFAULT;
+    //         currentBlink = 1; // continuous blinks
+    //     }
+    //     break;
     }
 
 // Return shorter interval if any LEDs are active to catch timeout

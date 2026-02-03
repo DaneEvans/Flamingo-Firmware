@@ -97,9 +97,7 @@ bool SerialModule::isValidConfig(const meshtastic_ModuleConfig_SerialConfig &con
 {
     if (config.override_console_serial_port && !IS_ONE_OF(config.mode, meshtastic_ModuleConfig_SerialConfig_Serial_Mode_NMEA,
                                                           meshtastic_ModuleConfig_SerialConfig_Serial_Mode_CALTOPO,
-                                                          meshtastic_ModuleConfig_SerialConfig_Serial_Mode_MS_CONFIG,
-                                                          meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOG,
-                                                          meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOGTEXT)) {
+                                                          meshtastic_ModuleConfig_SerialConfig_Serial_Mode_MS_CONFIG)) {
         const char *warning = "Invalid Serial config: override console serial port is only supported in NMEA, CalTopo, "
                               "MS_CONFIG, LOG, and LOGTEXT output-only modes.";
         LOG_ERROR(warning);
@@ -121,13 +119,6 @@ SerialModuleRadio::SerialModuleRadio() : MeshModule("SerialModuleRadio")
     switch (moduleConfig.serial.mode) {
     case meshtastic_ModuleConfig_SerialConfig_Serial_Mode_TEXTMSG:
         ourPortNum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-        break;
-    case meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOGTEXT:
-        // For text-only log mode, observe text messages
-        if (textMessageModule) {
-            observe(textMessageModule);
-        }
-        ourPortNum = meshtastic_PortNum_SERIAL_APP;
         break;
     case meshtastic_ModuleConfig_SerialConfig_Serial_Mode_NMEA:
     case meshtastic_ModuleConfig_SerialConfig_Serial_Mode_CALTOPO:
@@ -245,7 +236,7 @@ int32_t SerialModule::runOnce()
 #endif
             serialModuleRadio = new SerialModuleRadio();
 
-            if (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOG) {
+            if (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_WS85) { // replaces log for now ... 
                 RedirectablePrint::uartLogDestination = serialPrint;
                 LOG_INFO("SerialModule: Packet Log Mode (LOG) enabled");
                 serialPrint->printf("\n=== Meshtastic Packet Log Mode (LOG) ===\n");
@@ -813,7 +804,7 @@ void SerialModule::logPacketClean(const meshtastic_MeshPacket *p)
         return;
     }
 
-    bool isLogMode = (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOG);
+    bool isLogMode = (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_WS85);
     bool isLogTextOnlyMode = (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_LOGTEXT);
 
     if (!isLogMode && !isLogTextOnlyMode) {

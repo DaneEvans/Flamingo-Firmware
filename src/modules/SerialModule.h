@@ -124,6 +124,7 @@ extern SerialModuleRadio *serialModuleRadio;
 #include "SinglePortModule.h"
 #include "concurrency/OSThread.h"
 #include "configuration.h"
+#include "TextMessageModule.h"
 #include <Arduino.h>
 #include <functional>
 

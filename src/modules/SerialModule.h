@@ -3,9 +3,11 @@
 #if defined(FLAMINGO) && defined(FLAMINGO_SLINK)
 
 #include "MeshModule.h"
+#include "Observer.h"
 #include "MeshPacketQueue.h"
 #include "Router.h"
 #include "SinglePortModule.h"
+#include "TextMessageModule.h"
 #include "concurrency/OSThread.h"
 #include "configuration.h"
 #include <Arduino.h>
@@ -136,8 +138,9 @@ class SerialModule : public StreamAPI, private concurrency::OSThread
 
   public:
     SerialModule();
-
     static bool isValidConfig(const meshtastic_ModuleConfig_SerialConfig &config);
+    // Clean packet logger for LOG and LOGTEXT modes
+    static void logPacketClean(const meshtastic_MeshPacket *p);
 
   protected:
     virtual int32_t runOnce() override;
@@ -157,8 +160,7 @@ extern SerialModule *serialModule;
  * Radio interface for SerialModule
  *
  */
-class SerialModuleRadio : public MeshModule
-{
+class SerialModuleRadio : public MeshModule, public Observer<const meshtastic_MeshPacket *>{
     uint32_t lastRxID = 0;
     char outbuf[90] = "";
 
@@ -183,6 +185,9 @@ class SerialModuleRadio : public MeshModule
     meshtastic_PortNum ourPortNum;
 
     virtual bool wantPacket(const meshtastic_MeshPacket *p) override { return p->decoded.portnum == ourPortNum; }
+    
+    // Observer interface for text messages (LOGTEXT mode)
+    virtual int onNotify(const meshtastic_MeshPacket *packet) override;
 
     meshtastic_MeshPacket *allocDataPacket()
     {

@@ -52,7 +52,7 @@ extern "C" {
 
 #define LED_GREEN PIN_LED1
 #define LED_BLUE PIN_LED2
-
+#define FLAMINGO_BLINKY_IO 28 // set it to something that won't break things.
 // Rangetest LED
 #define PIN_LED_RT_R (3)
 #define PIN_LED_RT_G (2)

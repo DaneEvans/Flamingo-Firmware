@@ -46,12 +46,25 @@ void initVariant()
     pinMode(PIN_LED_RT_G, OUTPUT);
     pinMode(PIN_LED_RT_B, OUTPUT);
     ledOff(PIN_LED2);
-    ledOff(PIN_LED_CONN_R);
-    ledOff(PIN_LED_RT_R);
-    digitalWrite(PIN_LED_RT_G, HIGH);
-    digitalWrite(PIN_LED_CONN_G, HIGH);
+    ledOff(PIN_LED_CONN_G);
+    ledOff(PIN_LED_CONN_B);
+    ledOff(PIN_LED_RT_G);
+    ledOff(PIN_LED_RT_B);
+
+    // Test Flamingo LEDS 
+    ledOn(PIN_LED_RT_R);
+    ledOn(PIN_LED_CONN_R);
 
     // 3V3 Power Rail
     pinMode(PIN_3V3_EN, OUTPUT);
     digitalWrite(PIN_3V3_EN, HIGH);
+}
+
+void lateInitVariant()
+{
+    // Test Flamingo LEDS - move to green.
+    ledOff(PIN_LED_CONN_R);
+    ledOn(PIN_LED_CONN_G);
+    ledOff(PIN_LED_RT_R);
+    ledOn(PIN_LED_RT_G);
 }

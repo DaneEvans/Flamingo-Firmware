@@ -80,7 +80,6 @@ class BlinkModule : private concurrency::OSThread
     static constexpr unsigned long CONN_LED_TIMEOUT_MS = 600000; // 10 minutes
     LEDColor connLedColor = LEDColor::Off;
     LEDColor connLedDefaultColor = LEDColor::Off;
-    LEDColor connLedAfterColor = LEDColor::Off;
 #endif
 
   public:

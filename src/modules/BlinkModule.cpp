@@ -119,7 +119,6 @@ void BlinkModule::setConnectionLED(LEDColor color)
     connLedControlStartTime = millis();
     connLedsActive = true;
     connLedTimeoutMs = CONN_LED_TIMEOUT_MS;
-    connLedAfterColor = connLedDefaultColor;
     connLedColor = color;
     LOG_DEBUG("Connection LED set: active=%d, color=%d", connLedsActive, (int)color);
 }
@@ -132,7 +131,6 @@ void BlinkModule::setConnectionLED_cooldown(LEDColor color, unsigned long afterM
     connLedControlStartTime = millis();
     connLedsActive = true;
     connLedTimeoutMs = afterMs;
-    connLedAfterColor = connLedDefaultColor;
     connLedColor = color;
     LOG_DEBUG("Connection LED set: active=%d, color=%d, timeout=%lu", connLedsActive, (int)color, afterMs);
 }
@@ -229,9 +227,9 @@ int32_t BlinkModule::runOnce()
     if (connLedsActive && connLedsInitialized) {
         unsigned long elapsed = now - connLedControlStartTime;
         if (elapsed >= connLedTimeoutMs) {
-            setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, connLedAfterColor);
+            setRGBLEDColor(PIN_LED_CONN_R, PIN_LED_CONN_G, PIN_LED_CONN_B, connLedDefaultColor);
             connLedsActive = false;
-            LOG_DEBUG("Connection LEDs reset after timeout (elapsed: %lu ms) to color=%d", elapsed, (int)connLedAfterColor);
+            LOG_DEBUG("Connection LEDs reset after timeout (elapsed: %lu ms) to color=%d", elapsed, (int)connLedDefaultColor);
         }
     }
 #endif

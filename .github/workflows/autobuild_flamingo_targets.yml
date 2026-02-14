@@ -64,6 +64,10 @@ jobs:
             platform: esp32s3
           - target: t-deck-tft_flamingo
             platform: esp32s3
+          - target: r1-neo_flamingo
+            platform: nrf52840
+          - target: t-echo_flamingo
+            platform: nrf52840
 
     uses: ./.github/workflows/build_firmware.yml
     with:

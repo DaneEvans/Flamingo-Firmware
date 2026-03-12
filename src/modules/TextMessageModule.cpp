@@ -20,7 +20,7 @@ TextMessageModule *textMessageModule;
 #ifdef FLAMINGO
 #define MAX_ADMIN_MSG 31
 
-void parseAdmin(pb_size_t size, char *payload)
+void parseAdmin(pb_size_t size, char *payload, bool isToUs)
 {
     char local_payload[MAX_ADMIN_MSG + 1];
     pb_size_t new_size;
@@ -29,6 +29,10 @@ void parseAdmin(pb_size_t size, char *payload)
 
     // Check for Alert Bell emojii, toggle RT if alert bell received
     if (payload[0] == 0xF0 && payload[1] == 0x9F && payload[2] == 0x94 && payload[3] == 0x94) {
+        if (!isToUs) {
+            LOG_INFO("Ignoring Alert Bell from non-direct message");
+            return;
+        }
         if (getRtDynanmicEnable()) {
             LOG_INFO("Found Alert Bell, Dynamic Rangetest OFF ");
             setRtDynamicEnable(0);
@@ -50,18 +54,18 @@ void parseAdmin(pb_size_t size, char *payload)
         local_payload[i] = tolower(local_payload[i]);
     }
 
-    if (strcmp("adrt on hop", local_payload) == 0) {
+    if (strcmp("adrt on hop", local_payload) == 0 && isToUs) {
         LOG_INFO("Turning Dynamic Rangetest ON with hop");
         setRtDynamicEnable(1);
         setRtHop(1);
-    } else if (strcmp("adrt on", local_payload) == 0) {
+    } else if (strcmp("adrt on", local_payload) == 0 && isToUs) {
         LOG_INFO("Turning Dynamic Rangetest ON");
         setRtDynamicEnable(1);
         setRtHop(0);
-    } else if (strcmp("adrt off", local_payload) == 0) {
+    } else if (strcmp("adrt off", local_payload) == 0 && isToUs) {
         LOG_INFO("Turning Dynamic Rangetest OFF");
         setRtDynamicEnable(0);
-    } else if (strncmp("adrt delay", local_payload, 10) == 0 && new_size >= 13) {
+    } else if (strncmp("adrt delay", local_payload, 10) == 0 && new_size >= 13 && isToUs) {
         if (strncmp("15", local_payload + 11, 2) == 0) {
             LOG_INFO("Rangetest delay is 15");
             moduleConfig.range_test.sender = 15;
@@ -203,8 +207,8 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         }
         LOG_INFO("z=%s", textmsg);
     }
-    // Check for admin commands on both direct messages and group messages
-    parseAdmin(p.payload.size, (char *)p.payload.bytes);
+    // ADRT commands are accepted only on direct messages; ADLED is accepted on direct and channel messages
+    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp));
 
 #endif
 #else

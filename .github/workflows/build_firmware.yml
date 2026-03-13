@@ -96,27 +96,17 @@ jobs:
         run: |
           echo "[manifest] pio_env=$PIO_ENV"
           echo "[manifest] workspace=$(pwd)"
-          ls -la release/firmware-*.mt.json
-          python3 - <<'PY'
-import glob
-import json
-
-paths = sorted(glob.glob("release/firmware-*.mt.json"))
-if not paths:
-    raise SystemExit("No release/firmware-*.mt.json files found")
-
-for path in paths:
-    with open(path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
-
-    firmware_edition = data.get("firmware_edition")
-    if firmware_edition is None and isinstance(data.get("metadata"), dict):
-        firmware_edition = data["metadata"].get("firmware_edition")
-    if firmware_edition is None and isinstance(data.get("device_metadata"), dict):
-        firmware_edition = data["device_metadata"].get("firmware_edition")
-
-    print(f"[manifest] {path}: firmware_edition={firmware_edition}")
-PY
+          shopt -s nullglob
+          files=(release/firmware-*.mt.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "[manifest] no release/firmware-*.mt.json files found"
+            exit 1
+          fi
+          ls -la "${files[@]}"
+          for path in "${files[@]}"; do
+            echo "[manifest] $path"
+            grep -nE '"firmware_edition"[[:space:]]*:' "$path" || echo "[manifest] firmware_edition key not found in $path"
+          done
 
       - name: Job summary
         env:

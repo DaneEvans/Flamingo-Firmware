@@ -51,10 +51,45 @@ jobs:
           fi
 
       # Build as vanilla when requested by caller.
-      - name: Disable firmware edition override
+      - name: Set firmware edition to VANILLA
+        id: vanilla_prefs
         if: ${{ inputs.is_vanilla }}
+        env:
+          PIO_ENV: ${{ inputs.pio_env }}
         run: |
-          sed -i -E 's/^([[:space:]]*)"USERPREFS_FIRMWARE_EDITION":/\1\/\/ "USERPREFS_FIRMWARE_EDITION":/' userPrefs.jsonc
+          echo "[vanilla] pio_env=$PIO_ENV"
+          echo "[vanilla] workspace=$(pwd)"
+          echo "[vanilla] before change:"
+          grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
+
+          python3 - <<'PY'
+import pathlib
+import re
+
+path = pathlib.Path("userPrefs.jsonc")
+text = path.read_text(encoding="utf-8")
+replacement = '  "USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",'
+pattern = re.compile(r'^\s*(?://\s*)?"USERPREFS_FIRMWARE_EDITION"\s*:\s*"[^"]*"\s*,\s*$', re.MULTILINE)
+new_text, count = pattern.subn(replacement, text, count=1)
+if count == 0:
+    raise SystemExit("USERPREFS_FIRMWARE_EDITION not found in userPrefs.jsonc")
+path.write_text(new_text, encoding="utf-8")
+print("Updated USERPREFS_FIRMWARE_EDITION to VANILLA")
+PY
+
+          echo "[vanilla] after change:"
+          grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
+          sha256sum userPrefs.jsonc
+
+      - name: Verify vanilla prefs before build
+        if: ${{ inputs.is_vanilla }}
+        env:
+          PIO_ENV: ${{ inputs.pio_env }}
+        run: |
+          echo "[vanilla] verifying before build for pio_env=$PIO_ENV"
+          echo "[vanilla] workspace=$(pwd)"
+          grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
+          sha256sum userPrefs.jsonc
 
       - name: Build ${{ inputs.platform }}
         id: build

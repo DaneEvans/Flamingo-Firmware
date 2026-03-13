@@ -12,6 +12,10 @@ on:
       pio_env:
         required: true
         type: string
+      is_vanilla:
+        required: false
+        type: boolean
+        default: false
 
 permissions: read-all
 
@@ -45,6 +49,12 @@ jobs:
             echo "src=firmware.bin" >> $GITHUB_OUTPUT
             echo "tgt=release/bleota.bin" >> $GITHUB_OUTPUT
           fi
+
+      # Build as vanilla when requested by caller.
+      - name: Disable firmware edition override
+        if: ${{ inputs.is_vanilla }}
+        run: |
+          sed -i -E 's/^([[:space:]]*)"USERPREFS_FIRMWARE_EDITION":/\1\/\/ "USERPREFS_FIRMWARE_EDITION":/' userPrefs.jsonc
 
       - name: Build ${{ inputs.platform }}
         id: build

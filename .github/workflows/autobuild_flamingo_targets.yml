@@ -39,6 +39,7 @@ jobs:
             platform: nrf52840
           - target: nswcrs
             platform: nrf52840
+            is_vanilla: true
           - target: nswcrs_flamingo
             platform: nrf52840
           - target: nswcrs_flamingo_slink
@@ -74,6 +75,7 @@ jobs:
       version: ${{ needs.version.outputs.long }}
       platform: ${{ matrix.platform }}
       pio_env: ${{ matrix.target }}
+      is_vanilla: ${{ matrix.is_vanilla == true }}
 
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')

@@ -61,6 +61,8 @@ jobs:
             platform: nrf52840
           - target: tracker-t1000-e_flamingo
             platform: nrf52840
+          - target: seeed_wio_tracker_L1_flamingo
+            platform: nrf52840
           - target: heltec-v3_flamingo
             platform: esp32s3
           - target: t-deck-tft_flamingo

@@ -62,20 +62,9 @@ jobs:
           echo "[vanilla] before change:"
           grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
 
-          python3 - <<'PY'
-import pathlib
-import re
-
-path = pathlib.Path("userPrefs.jsonc")
-text = path.read_text(encoding="utf-8")
-replacement = '  "USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",'
-pattern = re.compile(r'^\s*(?://\s*)?"USERPREFS_FIRMWARE_EDITION"\s*:\s*"[^"]*"\s*,\s*$', re.MULTILINE)
-new_text, count = pattern.subn(replacement, text, count=1)
-if count == 0:
-    raise SystemExit("USERPREFS_FIRMWARE_EDITION not found in userPrefs.jsonc")
-path.write_text(new_text, encoding="utf-8")
-print("Updated USERPREFS_FIRMWARE_EDITION to VANILLA")
-PY
+          sed -i -E 's|^([[:space:]]*)//[[:space:]]*"USERPREFS_FIRMWARE_EDITION"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*$|\1"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",|' userPrefs.jsonc
+          sed -i -E 's|^([[:space:]]*)"USERPREFS_FIRMWARE_EDITION"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*$|\1"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",|' userPrefs.jsonc
+          grep -q '"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA"' userPrefs.jsonc
 
           echo "[vanilla] after change:"
           grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
@@ -100,6 +89,34 @@ PY
           pio_target: build
           ota_firmware_source: ${{ steps.ota_dir.outputs.src || '' }}
           ota_firmware_target: ${{ steps.ota_dir.outputs.tgt || '' }}
+
+      - name: Log final firmware edition from manifest
+        env:
+          PIO_ENV: ${{ inputs.pio_env }}
+        run: |
+          echo "[manifest] pio_env=$PIO_ENV"
+          echo "[manifest] workspace=$(pwd)"
+          ls -la release/firmware-*.mt.json
+          python3 - <<'PY'
+import glob
+import json
+
+paths = sorted(glob.glob("release/firmware-*.mt.json"))
+if not paths:
+    raise SystemExit("No release/firmware-*.mt.json files found")
+
+for path in paths:
+    with open(path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    firmware_edition = data.get("firmware_edition")
+    if firmware_edition is None and isinstance(data.get("metadata"), dict):
+        firmware_edition = data["metadata"].get("firmware_edition")
+    if firmware_edition is None and isinstance(data.get("device_metadata"), dict):
+        firmware_edition = data["device_metadata"].get("firmware_edition")
+
+    print(f"[manifest] {path}: firmware_edition={firmware_edition}")
+PY
 
       - name: Job summary
         env:

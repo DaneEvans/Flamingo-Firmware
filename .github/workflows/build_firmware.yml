@@ -52,33 +52,11 @@ jobs:
 
       # Build as vanilla when requested by caller.
       - name: Set firmware edition to VANILLA
-        id: vanilla_prefs
         if: ${{ inputs.is_vanilla }}
-        env:
-          PIO_ENV: ${{ inputs.pio_env }}
         run: |
-          echo "[vanilla] pio_env=$PIO_ENV"
-          echo "[vanilla] workspace=$(pwd)"
-          echo "[vanilla] before change:"
-          grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
-
           sed -i -E 's|^([[:space:]]*)//[[:space:]]*"USERPREFS_FIRMWARE_EDITION"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*$|\1"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",|' userPrefs.jsonc
           sed -i -E 's|^([[:space:]]*)"USERPREFS_FIRMWARE_EDITION"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*$|\1"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",|' userPrefs.jsonc
           grep -q '"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA"' userPrefs.jsonc
-
-          echo "[vanilla] after change:"
-          grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
-          sha256sum userPrefs.jsonc
-
-      - name: Verify vanilla prefs before build
-        if: ${{ inputs.is_vanilla }}
-        env:
-          PIO_ENV: ${{ inputs.pio_env }}
-        run: |
-          echo "[vanilla] verifying before build for pio_env=$PIO_ENV"
-          echo "[vanilla] workspace=$(pwd)"
-          grep -n 'USERPREFS_FIRMWARE_EDITION' userPrefs.jsonc || true
-          sha256sum userPrefs.jsonc
 
       - name: Build ${{ inputs.platform }}
         id: build
@@ -89,24 +67,6 @@ jobs:
           pio_target: build
           ota_firmware_source: ${{ steps.ota_dir.outputs.src || '' }}
           ota_firmware_target: ${{ steps.ota_dir.outputs.tgt || '' }}
-
-      - name: Log final firmware edition from manifest
-        env:
-          PIO_ENV: ${{ inputs.pio_env }}
-        run: |
-          echo "[manifest] pio_env=$PIO_ENV"
-          echo "[manifest] workspace=$(pwd)"
-          shopt -s nullglob
-          files=(release/firmware-*.mt.json)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "[manifest] no release/firmware-*.mt.json files found"
-            exit 1
-          fi
-          ls -la "${files[@]}"
-          for path in "${files[@]}"; do
-            echo "[manifest] $path"
-            grep -nE '"firmware_edition"[[:space:]]*:' "$path" || echo "[manifest] firmware_edition key not found in $path"
-          done
 
       - name: Job summary
         env:

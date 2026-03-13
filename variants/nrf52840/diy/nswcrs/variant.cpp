@@ -19,6 +19,7 @@
 */
 
 #include "variant.h"
+#include "Arduino.h"
 #include "nrf.h"
 #include "wiring_constants.h"
 #include "wiring_digital.h"
@@ -67,4 +68,7 @@ void lateInitVariant()
     ledOn(PIN_LED_CONN_G);
     ledOff(PIN_LED_RT_R);
     ledOn(PIN_LED_RT_G);
+    delay(1000);
+    ledOff(PIN_LED_RT_G);
+    ledOff(PIN_LED_CONN_G);
 }

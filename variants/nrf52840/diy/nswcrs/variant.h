@@ -44,15 +44,15 @@ extern "C" {
 #define NUM_ANALOG_OUTPUTS (0)
 
 // LEDs
-#define PIN_LED2 (35) // 1.03 - HB
-#define PIN_LED1 (36) // 1.04 - Packet rx
+#define PIN_LED1 (35) // 1.03 - HB
+#define PIN_LED2 (36) // 1.04 - Packet rx
 
 #define LED_BUILTIN PIN_LED1
 #define LED_CONN PIN_LED2
 
 #define LED_GREEN PIN_LED1
 #define LED_BLUE PIN_LED2
-
+#define FLAMINGO_BLINKY_IO 28 // set it to something that won't break things.
 // Rangetest LED
 #define PIN_LED_RT_R (3)
 #define PIN_LED_RT_G (2)
@@ -113,41 +113,41 @@ static const uint8_t AREF = PIN_AREF;
  * Serial interfaces
  */
 // RS485 or GPS
-#define PIN_SERIAL1_RX (15)
-#define PIN_SERIAL1_TX (16)
+#define PIN_SERIAL1_RX (19)
+#define PIN_SERIAL1_TX (20)
 
 // OpenLOG logger or extension
-#define PIN_SERIAL2_RX (19)
-#define PIN_SERIAL2_TX (20)
+#define PIN_SERIAL2_RX (16)
+#define PIN_SERIAL2_TX (15)
 
 /*
  * SPI Interfaces
  */
-#define SPI_INTERFACES_COUNT 0
+#define SPI_INTERFACES_COUNT 2
 
-// #define PIN_SPI_MISO (45)
-// #define PIN_SPI_MOSI (44)
-// #define PIN_SPI_SCK (43)
+#define PIN_SPI_MISO (45)
+#define PIN_SPI_MOSI (44)
+#define PIN_SPI_SCK (43)
 
-// #define PIN_SPI1_MISO (29) // (0 + 29)
-// #define PIN_SPI1_MOSI (30) // (0 + 30)
-// #define PIN_SPI1_SCK (3)   // (0 + 3)
+#define PIN_SPI1_MISO (29) // (0 + 29)
+#define PIN_SPI1_MOSI (30) // (0 + 30)
+#define PIN_SPI1_SCK (3)   // (0 + 3)
 
-// static const uint8_t SS = 42;
-// static const uint8_t MOSI = PIN_SPI_MOSI;
-// static const uint8_t MISO = PIN_SPI_MISO;
-// static const uint8_t SCK = PIN_SPI_SCK;
+static const uint8_t SS = 42;
+static const uint8_t MOSI = PIN_SPI_MOSI;
+static const uint8_t MISO = PIN_SPI_MISO;
+static const uint8_t SCK = PIN_SPI_SCK;
 
 /*
  * eink display pins
  */
 
-// #define PIN_EINK_CS (0 + 26)
-// #define PIN_EINK_BUSY (0 + 4)
-// #define PIN_EINK_DC (0 + 17)
-// #define PIN_EINK_RES (-1)
-// #define PIN_EINK_SCLK (0 + 3)
-// #define PIN_EINK_MOSI (0 + 30) // also called SDI
+#define PIN_EINK_CS (0 + 26)
+#define PIN_EINK_BUSY (0 + 4)
+#define PIN_EINK_DC (0 + 17)
+#define PIN_EINK_RES (-1)
+#define PIN_EINK_SCLK (0 + 3)
+#define PIN_EINK_MOSI (0 + 30) // also called SDI
 
 // #define USE_EINK
 
@@ -259,16 +259,14 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // #define VEXT_ON_VALUE HIGH
 #define GPS_EN_ACTIVE HIGH
 // #define PIN_GPS_STANDBY (32 + 2) // An output to wake GPS, low means allow sleep, high means force wake
-// #define PIN_GPS_PPS (32 + 4)
-// Seems to be missing on this new board
 // #define PIN_GPS_PPS (32 + 4)  // Pulse per second input from the GPS
-#define GPS_TX_PIN (20) // This is for bits going TOWARDS the CPU
-#define GPS_RX_PIN (19) // This is for bits going TOWARDS the GPS
+#define GPS_TX_PIN (19) // This is for bits going TOWARDS the CPU
+#define GPS_RX_PIN (20) // This is for bits going TOWARDS the GPS
 
 #define GPS_THREAD_INTERVAL 50
 
-#define PIN_SERIAL1_RX GPS_TX_PIN
-#define PIN_SERIAL1_TX GPS_RX_PIN
+// #define PIN_SERIAL1_RX GPS_TX_PIN
+// #define PIN_SERIAL1_TX GPS_RX_PIN
 
 // Define pin to enable GPS toggle (set GPIO to LOW) via user button triple press
 

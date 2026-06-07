@@ -394,8 +394,8 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
         packetPool.release(p_decoded);
     }
 #ifdef FLAMINGO_SLINK
-    if (moduleConfig.serial.enabled){
-        serialModuleRadio->onSend(*p);
+    if (moduleConfig.serial.enabled) {
+        serialModuleRadio->onSend(p);
     }
 #endif
 #if HAS_UDP_MULTICAST
@@ -552,20 +552,20 @@ DecodeState perhapsDecode(meshtastic_MeshPacket *p)
         // Message is decrypted. Change range test payload
         if (isBroadcast(p->to)) {
             if ((p->decoded.payload.size > 4) && strncmp("seq ", (char *)p->decoded.payload.bytes, 4) == 0) {
-                // this is a range test packet. 
+                // this is a range test packet.
                 auto bp = (char *)p->decoded.payload.bytes + p->decoded.payload.size;
+
                 if (RangeTestIsValidSnrAverage()) {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:%.2f", p->rx_rssi, p->rx_snr, RangeTestGetSnrAverage());
-                    if (extra > 0){
+                    if (extra > 0) {
                         p->decoded.payload.size = p->decoded.payload.size + extra;
                     }
                 } else {
                     auto extra = sprintf(bp, " RSSI=%i SNR=%.2f SNR_AVG:n/a", p->rx_rssi, p->rx_snr);
-                    if (extra > 0){
+                    if (extra > 0) {
                         p->decoded.payload.size = p->decoded.payload.size + extra;
                     }
                 }
-
             }
         }
 #endif

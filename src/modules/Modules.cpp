@@ -95,7 +95,7 @@
 #include "modules/BuzzerModule.h"
 #endif
 
-#ifdef FLAMINGO_BLINKY
+#if defined(FLAMINGO_BLINKY) || defined(FLAMINGO_RT_LED) || defined(FLAMINGO_CONNECTION_LED)
 #include "modules/BlinkModule.h"
 #endif
 
@@ -243,7 +243,7 @@ void setupModules()
 #ifdef FLAMINGO_BUZZER
     buzzerModule = new BuzzerModule();
 #endif
-#ifdef FLAMINGO_BLINKY
+#if defined(FLAMINGO_BLINKY) || defined(FLAMINGO_RT_LED) || defined(FLAMINGO_CONNECTION_LED)
     blinkModule = new BlinkModule();
 #endif
 
@@ -283,13 +283,12 @@ void setupModules()
     externalNotificationModule = new ExternalNotificationModule();
 #endif
 
-// I've hacked this - random endifs etc to get a compile .
 #ifdef FLAMINGO
 #if !MESHTASTIC_EXCLUDE_RANGETEST
     if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
         new RangeTestModule();
 #endif
-#endif
+#else
 #if !MESHTASTIC_EXCLUDE_RANGETEST && !MESHTASTIC_EXCLUDE_GPS
     if (moduleConfig.has_range_test && moduleConfig.range_test.enabled)
         new RangeTestModule();

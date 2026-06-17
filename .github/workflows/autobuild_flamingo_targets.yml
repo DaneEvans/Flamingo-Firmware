@@ -112,8 +112,16 @@ jobs:
         shell: bash
         run: |
           tag="${GITHUB_REF_NAME}"
+          base_pattern='^flamingo_v[0-9]+\.[0-9]+\.[0-9]+\.[0-9a-fA-F]+(_.+)?$'
 
-          if [[ "$tag" =~ ^flamingo_v[0-9]+\.[0-9]+\.[0-9]+\.[0-9a-fA-F]+_.+$ ]]; then
+          if [[ ! "$tag" =~ $base_pattern ]]; then
+            echo "Unexpected tag format: $tag"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$tag" == *_* ]]; then
             echo "draft=true" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else

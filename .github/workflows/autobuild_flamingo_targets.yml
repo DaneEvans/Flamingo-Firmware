@@ -107,6 +107,20 @@ jobs:
             zip -j -r "./${n}.zip" "$d"
           done
 
+      - name: Determine release type from tag
+        id: release_flags
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+
+          if [[ "$tag" =~ ^flamingo_v[0-9]+\.[0-9]+\.[0-9]+\.[0-9a-fA-F]+_.+$ ]]; then
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v2
         with:
@@ -114,6 +128,7 @@ jobs:
           name: Flamingo ${{ github.ref_name }}
           body: "Autobuild Flamingo firmware ${{ github.ref_name }}"
           files: firmware-*.zip
-          draft: false
+          draft: ${{ steps.release_flags.outputs.draft }}
+          prerelease: ${{ steps.release_flags.outputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

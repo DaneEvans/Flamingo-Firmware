@@ -54,6 +54,7 @@ jobs:
 
   syncUpstream_develop:
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: write
     steps:
@@ -125,7 +126,7 @@ jobs:
         run: |
           git push --force origin temp:flamingo_updated_dev
 
-  notify_scheduled_failure:
+  notify_sync_failure:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -135,7 +136,7 @@ jobs:
       - syncUpstream_develop
       - apply_flamingo_patch_master
       - apply_flamingo_patch_dev
-    if: ${{ always() && github.event_name == 'schedule' && (needs.syncUpstream_master.result == 'failure' || needs.syncUpstream_develop.result == 'failure' || needs.apply_flamingo_patch_master.result == 'failure' || needs.apply_flamingo_patch_dev.result == 'failure') }}
+    if: ${{ always() && (needs.syncUpstream_master.result == 'failure' || needs.syncUpstream_develop.result == 'failure' || needs.apply_flamingo_patch_master.result == 'failure' || needs.apply_flamingo_patch_dev.result == 'failure') }}
     steps:
       - name: Create or update failure issue
         uses: actions/github-script@v8
@@ -147,14 +148,15 @@ jobs:
         with:
           script: |
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const issuePrefix = '[sync_upstream] Scheduled run failed';
-            const marker = '<!-- sync_upstream_scheduled_failure -->';
+            const issuePrefix = '[sync_upstream] Run failed';
+            const marker = '<!-- sync_upstream_failure -->';
 
             const details = [
-              'The scheduled `Sync Upstream` workflow failed.',
+              'A `Sync Upstream` workflow failure was detected.',
               '',
               `Repository: ${context.repo.owner}/${context.repo.repo}`,
               `Workflow: ${context.workflow}`,
+              `Trigger: ${context.eventName}`,
               `Run number: ${context.runNumber}`,
               `Run URL: ${runUrl}`,
               '',
@@ -182,7 +184,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existing.number,
-                body: `Another scheduled failure was detected.\n\n${details}`,
+                body: `Another workflow failure was detected.\n\n${details}`,
               });
               core.info(`Updated existing issue #${existing.number}`);
             } else {
@@ -192,5 +194,5 @@ jobs:
                 title: `${issuePrefix} (${new Date().toISOString().slice(0,10)})`,
                 body: `${marker}\n\n${details}`,
               });
-              core.info('Created new scheduled failure issue');
+              core.info('Created new sync failure issue');
             }

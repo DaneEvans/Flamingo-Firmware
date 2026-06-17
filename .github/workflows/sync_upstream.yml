@@ -124,3 +124,73 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git push --force origin temp:flamingo_updated_dev
+
+  notify_scheduled_failure:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    needs:
+      - syncUpstream_master
+      - syncUpstream_develop
+      - apply_flamingo_patch_master
+      - apply_flamingo_patch_dev
+    if: ${{ always() && github.event_name == 'schedule' && (needs.syncUpstream_master.result == 'failure' || needs.syncUpstream_develop.result == 'failure' || needs.apply_flamingo_patch_master.result == 'failure' || needs.apply_flamingo_patch_dev.result == 'failure') }}
+    steps:
+      - name: Create or update failure issue
+        uses: actions/github-script@v8
+        env:
+          SYNC_MASTER_RESULT: ${{ needs.syncUpstream_master.result }}
+          SYNC_DEVELOP_RESULT: ${{ needs.syncUpstream_develop.result }}
+          PATCH_MASTER_RESULT: ${{ needs.apply_flamingo_patch_master.result }}
+          PATCH_DEV_RESULT: ${{ needs.apply_flamingo_patch_dev.result }}
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const issuePrefix = '[sync_upstream] Scheduled run failed';
+            const marker = '<!-- sync_upstream_scheduled_failure -->';
+
+            const details = [
+              'The scheduled `Sync Upstream` workflow failed.',
+              '',
+              `Repository: ${context.repo.owner}/${context.repo.repo}`,
+              `Workflow: ${context.workflow}`,
+              `Run number: ${context.runNumber}`,
+              `Run URL: ${runUrl}`,
+              '',
+              'Job results:',
+              `- syncUpstream_master: ${process.env.SYNC_MASTER_RESULT}`,
+              `- syncUpstream_develop: ${process.env.SYNC_DEVELOP_RESULT}`,
+              `- apply_flamingo_patch_master: ${process.env.PATCH_MASTER_RESULT}`,
+              `- apply_flamingo_patch_dev: ${process.env.PATCH_DEV_RESULT}`,
+            ].join('\n');
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existing = openIssues.find(issue =>
+              !issue.pull_request &&
+              (issue.title.startsWith(issuePrefix) || (issue.body || '').includes(marker))
+            );
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Another scheduled failure was detected.\n\n${details}`,
+              });
+              core.info(`Updated existing issue #${existing.number}`);
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `${issuePrefix} (${new Date().toISOString().slice(0,10)})`,
+                body: `${marker}\n\n${details}`,
+              });
+              core.info('Created new scheduled failure issue');
+            }

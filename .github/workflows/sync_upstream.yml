@@ -54,7 +54,6 @@ jobs:
 
   syncUpstream_develop:
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: write
     steps:
@@ -103,6 +102,8 @@ jobs:
     permissions:
       contents: write
     needs: syncUpstream_develop
+    continue-on-error: true
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

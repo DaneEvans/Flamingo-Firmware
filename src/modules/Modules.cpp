@@ -350,6 +350,9 @@ void setupModules()
         new RangeTestModule();
 #endif
 #endif
+#if defined(HAS_HARDWARE_WATCHDOG)
+    watchdogThread = new WatchdogThread();
+#endif
     // NOTE! This module must be added LAST because it likes to check for replies from other modules and avoid sending extra
     // acks
     routingModule = new RoutingModule();

@@ -2,7 +2,7 @@ name: Autobuild Flamingo Targets
 
 on:
   push:
-    branches: [autobuilds]
+    branches: [autobuilds*]
     tags: [flamingo*]
   workflow_dispatch:
 
@@ -35,15 +35,38 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: heltec-mesh-node-t114_flamingo
-            platform: nrf52840
-          - target: nswcrs
+          ## Custom Hardware, meshtastic Firmware compatible
+          - target: goneepic_cavenode
             platform: nrf52840
             is_vanilla: true
-          - target: nswcrs_flamingo
+          ## Flamingo / Cave firmware targets
+          # Custom HW
+          - target: goneepic_cavenode_flamingo
             platform: nrf52840
-          - target: nswcrs_flamingo_slink
+          - target: goneepic_cavenode_flamingo_slink
             platform: nrf52840
+          # Common
+          - target: rak_wismeshtag_flamingo
+            platform: nrf52840
+          - target: tracker-t1000-e_flamingo
+            platform: nrf52840
+          # Australian
+          - target: r1-neo_flamingo
+            platform: nrf52840
+          - target: t-echo_flamingo
+            platform: nrf52840
+          - target: seeed_solar_node_flamingo
+            platform: nrf52840
+          - target: seeed_xiao_nrf52840_sense_flamingo
+            platform: nrf52840
+          - target: heltec-v3_flamingo
+            platform: esp32s3
+          # - target: seeed_xiao_nrf52840_kit_flamingo
+          #   platform: nrf52840
+
+          # US
+          - target: t-deck-tft_flamingo
+            platform: esp32s3
           # removing these as they don't build successfully - suspect the 'upload' or the 'libdeps.'
           # - target: rak4631_flamingo
           #   platform: nrf52840
@@ -53,22 +76,6 @@ jobs:
           #   platform: nrf52840
           # - target: rak4631_cavegen2
           #   platform: nrf52840
-          - target: rak_wismeshtag_flamingo
-            platform: nrf52840
-          # - target: seeed_xiao_nrf52840_kit_flamingo
-          #   platform: nrf52840
-          - target: seeed_xiao_nrf52840_sense_flamingo
-            platform: nrf52840
-          - target: tracker-t1000-e_flamingo
-            platform: nrf52840
-          - target: heltec-v3_flamingo
-            platform: esp32s3
-          - target: t-deck-tft_flamingo
-            platform: esp32s3
-          - target: r1-neo_flamingo
-            platform: nrf52840
-          - target: t-echo_flamingo
-            platform: nrf52840
 
     uses: ./.github/workflows/build_firmware.yml
     with:

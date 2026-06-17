@@ -1,0 +1,103 @@
+name: Auto Release Tags
+# Mirrors tagged upstream releases, merges the Flamingo patch, and publishes a draft release.
+
+permissions:
+  contents: read
+
+env:
+  UPSTREAM_URL: https://github.com/meshtastic/firmware.git
+  UPSTREAM_TAG_REGEX: ^v.*$
+  FLAMINGO_BRANCH: flamingo
+
+on:
+  schedule:
+    - cron: 17 4 * * *
+  workflow_dispatch:
+
+jobs:
+  release_tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Find latest upstream tag
+        id: upstream_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t tags < <(
+            git ls-remote --tags --refs "${UPSTREAM_URL}" \
+              | awk '{print $2}' \
+              | sed 's#refs/tags/##' \
+              | grep -E "${UPSTREAM_TAG_REGEX}" \
+              | sort -V
+          )
+
+          if [[ ${#tags[@]} -eq 0 ]]; then
+            echo "No upstream tags matched ${UPSTREAM_TAG_REGEX}"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest_tag="${tags[-1]}"
+          automated_tag="flamingo_${latest_tag}_automated"
+
+          if git ls-remote --tags origin "refs/tags/${automated_tag}" | grep -q .; then
+            echo "Existing automated tag found: ${automated_tag}"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "upstream_tag=${latest_tag}" >> "$GITHUB_OUTPUT"
+          echo "automated_tag=${automated_tag}" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch upstream tag and flamingo branch
+        if: steps.upstream_tag.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch --tags "${UPSTREAM_URL}"
+          git fetch origin "${FLAMINGO_BRANCH}:${FLAMINGO_BRANCH}"
+          git checkout -b "release_${{ steps.upstream_tag.outputs.upstream_tag }}" "tags/${{ steps.upstream_tag.outputs.upstream_tag }}"
+
+      - name: Merge flamingo branch
+        if: steps.upstream_tag.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge --no-edit "${FLAMINGO_BRANCH}"
+
+      - name: Create and push automated tag
+        if: steps.upstream_tag.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          automated_tag='${{ steps.upstream_tag.outputs.automated_tag }}'
+          upstream_tag='${{ steps.upstream_tag.outputs.upstream_tag }}'
+
+          git tag -a "${automated_tag}" -m "Automated release for upstream tag ${upstream_tag}"
+          git push origin "${automated_tag}"
+
+      - name: Publish draft release
+        if: steps.upstream_tag.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          automated_tag='${{ steps.upstream_tag.outputs.automated_tag }}'
+          upstream_tag='${{ steps.upstream_tag.outputs.upstream_tag }}'
+
+          gh release create "${automated_tag}" \
+            --draft \
+            --title "${automated_tag}" \
+            --notes "Automated draft release for upstream tag ${upstream_tag}, merged with the Flamingo branch."

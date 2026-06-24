@@ -1,8 +1,8 @@
-name: Autobuild Flamingo Targets
+name: Flamingo Autobuild Targets
 
 on:
   push:
-    branches: [autobuilds*]
+    branches: [autobuild*]
     tags: [flamingo*]
   workflow_dispatch:
 

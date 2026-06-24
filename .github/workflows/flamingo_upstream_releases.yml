@@ -1,4 +1,4 @@
-name: Auto Release Tags
+name: Flamingo Upstream Releases
 # Mirrors tagged upstream releases, merges the Flamingo patch, and publishes a draft release.
 
 permissions:

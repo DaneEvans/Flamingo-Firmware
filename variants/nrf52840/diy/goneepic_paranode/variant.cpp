@@ -45,6 +45,4 @@ void initVariant()
     digitalWrite(PIN_3V3_EN, HIGH);
 }
 
-void lateInitVariant()
-{
-}
+void lateInitVariant() {}

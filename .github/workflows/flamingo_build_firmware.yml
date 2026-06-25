@@ -1,4 +1,4 @@
-name: Build
+name: Flamingo Build
 
 on:
   workflow_call:
@@ -12,6 +12,10 @@ on:
       pio_env:
         required: true
         type: string
+      is_vanilla:
+        required: false
+        type: boolean
+        default: false
 
 permissions: read-all
 
@@ -26,6 +30,14 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+
+      # Build as vanilla when requested by caller.
+      - name: Set firmware edition to VANILLA
+        if: ${{ inputs.is_vanilla }}
+        run: |
+          sed -i -E 's|^([[:space:]]*)//[[:space:]]*"USERPREFS_FIRMWARE_EDITION"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*$|\1"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",|' userPrefs.jsonc
+          sed -i -E 's|^([[:space:]]*)"USERPREFS_FIRMWARE_EDITION"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*$|\1"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA",|' userPrefs.jsonc
+          grep -q '"USERPREFS_FIRMWARE_EDITION": "meshtastic_FirmwareEdition_VANILLA"' userPrefs.jsonc
 
       - name: Build ${{ inputs.platform }}
         id: build

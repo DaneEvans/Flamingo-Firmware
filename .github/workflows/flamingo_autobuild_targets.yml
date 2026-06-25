@@ -84,7 +84,7 @@ jobs:
           # - target: rak4631_cavegen2
           #   platform: nrf52840
 
-    uses: ./.github/workflows/build_firmware.yml
+    uses: ./.github/workflows/flamingo_build_firmware.yml
     with:
       version: ${{ needs.version.outputs.long }}
       platform: ${{ matrix.platform }}

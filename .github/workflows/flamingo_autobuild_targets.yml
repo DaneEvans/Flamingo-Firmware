@@ -39,6 +39,9 @@ jobs:
           - target: goneepic_cavenode
             platform: nrf52840
             is_vanilla: true
+          - target: goneepic_paranode
+            platform: nrf52840
+            is_vanilla: true
           ## Flamingo / Cave firmware targets
           # Custom HW
           - target: goneepic_cavenode_flamingo
@@ -62,6 +65,8 @@ jobs:
           - target: seeed_xiao_nrf52840_sense_flamingo
             platform: nrf52840
           - target: heltec-v3_flamingo
+            platform: esp32s3
+          - target: heltec-v4_flamingo
             platform: esp32s3
           # - target: seeed_xiao_nrf52840_kit_flamingo
           #   platform: nrf52840

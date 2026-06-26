@@ -28,7 +28,11 @@
 #define default_node_info_broadcast_secs 3 * 60 * 60
 #define default_neighbor_info_broadcast_secs 6 * 60 * 60
 #define min_node_info_broadcast_secs 60 * 60 // No regular broadcasts of more than once an hour
+#ifdef FLAMINGO
+#define min_neighbor_info_broadcast_secs 4 * 60 // 4 mins - expect most to be 15 mins or more, but allow for faster rebroadcasts in event mode
+#else
 #define min_neighbor_info_broadcast_secs 4 * 60 * 60
+#endif
 #define default_map_publish_interval_secs 60 * 60
 #ifdef USERPREFS_RINGTONE_NAG_SECS
 #define default_ringtone_nag_secs USERPREFS_RINGTONE_NAG_SECS

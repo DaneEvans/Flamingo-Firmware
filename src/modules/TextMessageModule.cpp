@@ -24,7 +24,7 @@ TextMessageModule *textMessageModule;
 #ifdef FLAMINGO
 #define MAX_ADMIN_MSG 31
 
-void parseAdmin(pb_size_t size, char *payload, bool isToUs)
+void parseAdmin(pb_size_t size, char *payload, bool is_dm)
 {
     char local_payload[MAX_ADMIN_MSG + 1];
     pb_size_t new_size;
@@ -32,11 +32,8 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs)
         return; // too short to be an ADMIN message
 
     // Check for Alert Bell emojii, toggle RT if alert bell received
-    if (payload[0] == 0xF0 && payload[1] == 0x9F && payload[2] == 0x94 && payload[3] == 0x94) {
-        if (!isToUs) {
-            LOG_INFO("Ignoring Alert Bell from non-direct message");
-            return;
-        }
+    /// use alert bell only if it is a dm
+    if (is_dm && payload[0] == 0xF0 && payload[1] == 0x9F && payload[2] == 0x94 && payload[3] == 0x94) {
         if (getRtDynanmicEnable()) {
             LOG_INFO("Found Alert Bell, Dynamic Rangetest OFF ");
             setRtDynamicEnable(0);
@@ -50,6 +47,12 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs)
     if (!((payload[0] == 'A' || payload[0] == 'a') && (payload[1] == 'D' || payload[1] == 'd')))
         return;
     // this is an ADMIN message
+    char adminBuf[MAX_ADMIN_MSG + 1] = "adrt on xxxx"; // targeted to specific node
+    auto node = nodeDB->getMeshNode(myNodeInfo.my_node_num);
+    const char *sender = (node) ? node->user.short_name : "????";
+    for (int i = 0; i < 4; i++) {
+        adminBuf[i + 8] = tolower(sender[i]);
+    }
     new_size = (size < MAX_ADMIN_MSG) ? size : MAX_ADMIN_MSG;
     strncpy(local_payload, payload, new_size);
     local_payload[new_size] = '\0';
@@ -58,27 +61,35 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs)
         local_payload[i] = tolower(local_payload[i]);
     }
 
-    if (strcmp("adrt on hop", local_payload) == 0 && isToUs) {
-        LOG_INFO("Turning Dynamic Rangetest ON with hop");
+    if (strcmp(adminBuf, local_payload) == 0) {
+        LOG_INFO("Turning Dynamic Rangetest ON targeted at node: %s", sender);
         setRtDynamicEnable(1);
-        setRtHop(1);
-    } else if (strcmp("adrt on", local_payload) == 0 && isToUs) {
+        setRtHop(0);
+    } else if (is_dm && strcmp("adrt on", local_payload) == 0) {
         LOG_INFO("Turning Dynamic Rangetest ON");
         setRtDynamicEnable(1);
         setRtHop(0);
-    } else if (strcmp("adrt off", local_payload) == 0 && isToUs) {
+    } else if (strcmp("adrt off", local_payload) == 0) {
         LOG_INFO("Turning Dynamic Rangetest OFF");
         setRtDynamicEnable(0);
-    } else if (strncmp("adrt delay", local_payload, 10) == 0 && new_size >= 13 && isToUs) {
-        if (strncmp("15", local_payload + 11, 2) == 0) {
-            LOG_INFO("Rangetest delay is 15");
-            moduleConfig.range_test.sender = 15;
-        } else if (strncmp("30", local_payload + 11, 2) == 0) {
-            LOG_INFO("Rangetest delay is 30");
-            moduleConfig.range_test.sender = 30;
-        } else if (strncmp("60", local_payload + 11, 2) == 0) {
-            LOG_INFO("Rangetest delay is 60");
-            moduleConfig.range_test.sender = 60;
+    } else if (new_size >= 12 && strncmp("adrt delay", local_payload, 10) == 0) {
+        if (strcmp("adrt delay 5", local_payload) == 0) {
+            LOG_INFO("Rangetest delay is 5");
+            moduleConfig.range_test.sender = 5;
+        } else if (new_size >= 13) {
+            if (strncmp("10", local_payload + 11, 2) == 0) {
+                LOG_INFO("Rangetest delay is 10");
+                moduleConfig.range_test.sender = 10;
+            } else if (strncmp("15", local_payload + 11, 2) == 0) {
+                LOG_INFO("Rangetest delay is 15");
+                moduleConfig.range_test.sender = 15;
+            } else if (strncmp("30", local_payload + 11, 2) == 0) {
+                LOG_INFO("Rangetest delay is 30");
+                moduleConfig.range_test.sender = 30;
+            } else if (strncmp("60", local_payload + 11, 2) == 0) {
+                LOG_INFO("Rangetest delay is 60");
+                moduleConfig.range_test.sender = 60;
+            }
         }
     }
 #ifdef FLAMINGO_CONNECTION_LED
@@ -212,7 +223,7 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         LOG_INFO("z=%s", textmsg);
     }
     // ADRT commands are accepted only on direct messages; ADLED is accepted on direct and channel messages
-    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp));
+    parseAdmin(p.payload.size, (char *)p.payload.bytes, !isBroadcast(mp.to));
 
 #endif
 #else

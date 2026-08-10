@@ -195,13 +195,7 @@ void RangeTestModuleRadio::sendPayload(NodeNum dest, bool wantReplies)
     meshtastic_MeshPacket *p = allocDataPacket();
     p->to = dest;
     p->decoded.want_response = wantReplies;
-#ifdef FLAMINGO
-    // Conditionally hop Range Test packets
-    p->hop_limit = getRtHop() ? Default::getConfiguredOrDefaultHopLimit(config.lora.hop_limit) : 0;
-#else
     p->hop_limit = 0;
-#endif
-
     p->want_ack = false;
 
     packetSequence++;

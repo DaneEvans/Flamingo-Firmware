@@ -4,6 +4,9 @@
 #ifdef FLAMINGO
 #include "MeshTypes.h"
 #endif
+#ifdef FLAMINGO_NODEINFO
+#include "NodeInfoModule.h"
+#endif
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "buzz.h"
@@ -65,7 +68,14 @@ void parseAdmin(pb_size_t size, char *payload, bool is_dm)
         LOG_INFO("Turning Dynamic Rangetest ON targeted at node: %s", sender);
         setRtDynamicEnable(1);
         setRtHop(0);
-    } else if (is_dm && strcmp("adrt on", local_payload) == 0) {
+    }
+#ifdef FLAMINGO_NODEINFO
+    else if (strcmp("adni", local_payload) == 0) {
+        nodeInfoModule->scheduleNodeInfoCheck(FLAMINGO_NODEINFO_MAXMINUTES * 60);
+        LOG_INFO("Scheduling NodeInfo packet sometimes in the next 15 minutes");
+    }
+#endif
+    else if (is_dm && strcmp("adrt on", local_payload) == 0) {
         LOG_INFO("Turning Dynamic Rangetest ON");
         setRtDynamicEnable(1);
         setRtHop(0);
@@ -222,7 +232,7 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         }
         LOG_INFO("z=%s", textmsg);
     }
-    // ADRT commands are accepted only on direct messages; ADLED is accepted on direct and channel messages
+    // ADRT commands are now accepted on both channel and direct messages; ADLED is accepted on direct and channel messages
     parseAdmin(p.payload.size, (char *)p.payload.bytes, !isBroadcast(mp.to));
 
 #endif
@@ -232,6 +242,7 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
     LOG_INFO("Received text msg from=0x%0x, id=0x%x, msg=%.*s", mp.from, mp.id, p.payload.size, p.payload.bytes);
 #endif
 #endif
+
     // add packet ID to the rolling list of packets
     textPacketList[textPacketListIndex] = mp.id;
     textPacketListIndex = (textPacketListIndex + 1) % TEXT_PACKET_LIST_SIZE;

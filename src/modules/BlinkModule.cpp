@@ -168,6 +168,7 @@ static uint8_t fsmState = STATE_DEFAULT;
 
 int32_t BlinkModule::runOnce()
 {
+#if !MESHTASTIC_EXCLUDE_I2C
 #if BLINK_PIN == 13 || BLINK_PIN == 14
     // special case for handing I2C disable
     // using an I2C pin
@@ -180,6 +181,7 @@ int32_t BlinkModule::runOnce()
             Wire.end();
         }
     }
+#endif
 #endif
 
     if (!initDone) {

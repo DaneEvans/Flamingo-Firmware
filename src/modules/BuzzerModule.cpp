@@ -41,23 +41,12 @@ uint8_t fsmState = STATE_DEFAULT;
 
 int32_t BuzzerModule::runOnce()
 {
-#if BUZZER_PIN == 13 || BUZZER_PIN == 14
-    // special case for handing I2C disable
-    // using an I2C pin
-    if (callCount < 3) {
-        callCount += 1;
-        return (200);
-    } else {
-        // only disable I2C until after all other modules have been initialized
-        if (!initDone) {
-            Wire.end();
-        }
-    }
-#endif
+
     if (!initDone) {
         pinMode(BUZZER_PIN, OUTPUT);
         digitalWrite(BUZZER_PIN, BUZZER_OFF);
         initDone = 1;
+        startTone(1, 400, 100, 4); // play four beeps at init time
     }
 
     unsigned long now = millis();

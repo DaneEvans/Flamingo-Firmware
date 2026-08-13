@@ -2,6 +2,9 @@
 #if !MESHTASTIC_EXCLUDE_GPS
 #include "GPS.h"
 #endif
+#ifdef FLAMINGO_HOP_DEBUG
+#include <array>
+#endif
 #include "../detect/ScanI2C.h"
 #include "Channels.h"
 #include "CryptoEngine.h"
@@ -160,30 +163,49 @@ uint32_t get_st7789_id(uint8_t cs, uint8_t sck, uint8_t mosi, uint8_t dc, uint8_
 #endif
 
 #ifdef FLAMINGO_HOP_DEBUG
-void get_shortname_from_id(uint32_t id, char *namebuf) {
-    if (id == 0xffffffff) {
-        strncpy(namebuf,"BCST",4);
-    } else {
-        auto node = nodeDB->getMeshNode(id);
-        (node) ? strncpy(namebuf, node->user.short_name, 4) : strncpy(namebuf,"????",4);
-    }
-    namebuf[4] = 0;
-}
+// Change this to your chain of nodes that you want to force to only
+// accept packets from left/right neighbors - the entries are the short names
+std::array<std::string, 14> node_chain = {"WP03", "WP05", "WP06", "WP07", "WP08", "WP09", "WB07",
+                                          "WB08", "WB09", "WB10", "WB20", "WB21", "WB22", "WB23"};
+uint16_t my_index = 0xFFFF;
+uint16_t left_neighbor = 0xFFFF;
+uint16_t right_neighbor = 0xFFFF;
 
-uint16_t get_myshortname_magicnumber() {
-
-    uint16_t retval = 0;
+uint16_t get_myshortname_magicnumber()
+{
+    if (my_index != 0xFFFF)
+        return my_index;
+    // set all of the indexes if they have not been set yet
     auto node = nodeDB->getMeshNode(myNodeInfo.my_node_num);
     const char *sender = (node) ? node->user.short_name : "????";
-
-    if ( sender[2] >= 0x30 && sender[2]  <= 0x39) {
-        retval = (sender[2] - 0x30) * 10;
+    for (size_t i = 0; i < node_chain.size(); ++i) {
+        if (sender == node_chain[i]) {
+            my_index = i;
+            if (i != 0)
+                left_neighbor = i - 1;
+            if (i + 1 != node_chain.size())
+                right_neighbor = i + 1;
+            break;
+        }
     }
-    if ( sender[3] >= 0x30 && sender[3]  <= 0x39) {
-        retval += (sender[3] - 0x30);
-    }
-    return retval;
+    return my_index;
 }
+
+uint16_t get_max_neighbor()
+{
+    return node_chain.size();
+}
+
+uint16_t get_left_neighbor()
+{
+    return left_neighbor;
+}
+
+uint16_t get_right_neighbor()
+{
+    return right_neighbor;
+}
+
 #endif
 
 bool meshtastic_NodeDatabase_callback(pb_istream_t *istream, pb_ostream_t *ostream, const pb_field_iter_t *field)

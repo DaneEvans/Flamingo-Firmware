@@ -30,6 +30,16 @@ class NodeInfoModule : public ProtobufModule<meshtastic_User>, private concurren
      */
     void triggerImmediateNodeInfoCheck();
 
+#ifdef FLAMINGO_NODEINFO
+
+    /**
+     * Schedule a NodeInfo periodic check in the future different from current time
+     * Called externally by admin command
+     * Randomly scheduled from between one second from now and maxSeconds
+     */
+    void scheduleNodeInfoCheck(int32_t maxSeconds);
+#endif
+
   protected:
     /** Called to handle a particular incoming message
 

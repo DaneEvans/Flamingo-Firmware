@@ -148,6 +148,28 @@ meshtastic_MeshPacket *NodeInfoModule::allocReply()
     // Use graduated scaling based on active mesh size (10 minute base, scales with congestion coefficient)
     uint32_t timeoutMs = Default::getConfiguredOrDefaultMsScaled(0, 10 * 60, nodeStatus->getNumOnline());
     uint32_t lastNodeInfo = transmitHistory ? transmitHistory->getLastSentToMeshMillis(meshtastic_PortNum_NODEINFO_APP) : 0;
+#ifdef FLAMINGO_NODEINFO
+    ignoreRequest = false; // Don't ignore requests anymore
+    meshtastic_User &u = owner;
+
+    // Strip the public key if the user is licensed
+    if (u.is_licensed && u.public_key.size > 0) {
+        memset(u.public_key.bytes, 0, sizeof(u.public_key.bytes));
+        u.public_key.size = 0;
+    }
+
+    // FIXME: Clear the user.id field since it should be derived from node number on the receiving end
+    // u.id[0] = '\0';
+
+    // Ensure our user.id is derived correctly
+    strcpy(u.id, nodeDB->getNodeId().c_str());
+
+    LOG_INFO("Send owner %s/%s/%s", u.id, u.long_name, u.short_name);
+    if (transmitHistory)
+        transmitHistory->setLastSentToMesh(meshtastic_PortNum_NODEINFO_APP);
+    return allocDataProtobuf(u);
+#else
+
     if (!shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, timeoutMs)) {
         LOG_DEBUG("Skip send NodeInfo since we sent it <%us ago", timeoutMs / 1000);
         ignoreRequest = true; // Mark it as ignored for MeshModule
@@ -178,6 +200,7 @@ meshtastic_MeshPacket *NodeInfoModule::allocReply()
             transmitHistory->setLastSentToMesh(meshtastic_PortNum_NODEINFO_APP);
         return allocDataProtobuf(u);
     }
+#endif
 }
 
 void NodeInfoModule::pruneLastNodeInfoCache()
@@ -211,6 +234,17 @@ NodeInfoModule::NodeInfoModule()
     setIntervalFromNow(setStartDelay()); // Send our initial owner announcement 30 seconds
                                          // after we start (to give network time to setup)
 }
+
+#ifdef FLAMINGO_NODEINFO
+
+void NodeInfoModule::scheduleNodeInfoCheck(int32_t maxSeconds)
+{
+    uint32_t nextTrigger = random(1000, maxSeconds * 1000); // next trigger in milliseconds
+    LOG_DEBUG("NodeInfo: scheduling periodic check in %d msec", nextTrigger);
+    setIntervalFromNow(nextTrigger);
+}
+
+#endif
 
 int32_t NodeInfoModule::runOnce()
 {

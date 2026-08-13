@@ -21,6 +21,7 @@
 #include "modules/RangeTestModule.h"
 #include <Arduino.h>
 #include <Throttle.h>
+#include <Wire.h>
 
 BlinkModule *blinkModule;
 
@@ -153,6 +154,7 @@ void BlinkModule::setConnectionLEDTimeout(unsigned long timeoutMs)
 // runOnce is really misnamed - this is periodically called
 
 static bool initDone = 0;
+static uint8_t callCount = 0;
 
 #define POLL_INTERVAL_MS 200
 
@@ -166,6 +168,22 @@ static uint8_t fsmState = STATE_DEFAULT;
 
 int32_t BlinkModule::runOnce()
 {
+#if !MESHTASTIC_EXCLUDE_I2C
+#if BLINK_PIN == 13 || BLINK_PIN == 14
+    // special case for handing I2C disable
+    // using an I2C pin
+    if (callCount < 3) {
+        callCount += 1;
+        return (POLL_INTERVAL_MS);
+    } else {
+        // only disable I2C until after all other modules have been initialized
+        if (!initDone) {
+            Wire.end();
+        }
+    }
+#endif
+#endif
+
     if (!initDone) {
         pinMode(BLINK_PIN, OUTPUT);
         digitalWrite(BLINK_PIN, BLINK_OFF);

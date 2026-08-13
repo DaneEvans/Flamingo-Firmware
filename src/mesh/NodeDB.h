@@ -97,7 +97,9 @@ extern meshtastic_Position localPosition;
 
 #ifdef FLAMINGO_HOP_DEBUG
 extern uint16_t get_myshortname_magicnumber();
-extern void get_shortname_from_id(uint32_t id, char *namebuf);
+extern uint16_t get_left_neighbor();
+extern uint16_t get_right_neighbor();
+extern uint16_t get_max_neighbor();
 #endif
 
 static constexpr const char *deviceStateFileName = "/prefs/device.proto";

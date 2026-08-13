@@ -221,7 +221,14 @@ void ExternalNotificationModule::setExternalState(uint8_t index, bool on)
         blue = 0;
         white = 0;
     }
+#ifdef FLAMINGO
+    // this is a bug fix which should make it into the main Meshtastic release
+    if (ambientLightingThread) {
+        ambientLightingThread->setLighting(moduleConfig.ambient_lighting.current, red, green, blue);
+    }
+#else
     ambientLightingThread->setLighting(moduleConfig.ambient_lighting.current, red, green, blue);
+#endif
 #endif
 
 #ifdef HAS_DRV2605

@@ -584,23 +584,22 @@ void RadioLibInterface::handleReceiveInterrupt()
 #ifdef FLAMINGO
 #ifdef FLAMINGO_HOP_DEBUG
             uint16_t myshortnum = get_myshortname_magicnumber();
+
+            if (myshortnum == 0xFFFF) {
+                LOG_INFO("MagicNumber: Dropping received packet as this node is not in the Node neighbor list");
+            }
             uint16_t reject_packet = 1;
             LOG_INFO("MagicNumber: MyShortNum: %d, RX packet headerMagicNum: %d", myshortnum, radioBuffer.header.magicnum);
-            if (myshortnum == 12 && (radioBuffer.header.magicnum == 20 || radioBuffer.header.magicnum == 11) ) {
+            // edge cases, first and last nodes
+            if ((myshortnum == 0 && radioBuffer.header.magicnum == get_right_neighbor()) ||
+                (myshortnum == get_max_neighbor() && radioBuffer.header.magicnum == get_left_neighbor())) {
                 reject_packet = 0;
             }
-            
-            if (myshortnum == 20 && (radioBuffer.header.magicnum == 12 || radioBuffer.header.magicnum == 21) ) {
+            // middle nodes
+            if (reject_packet &&
+                (radioBuffer.header.magicnum == get_right_neighbor() || radioBuffer.header.magicnum == get_left_neighbor())) {
                 reject_packet = 0;
             }
-             if (myshortnum == 1 && (radioBuffer.header.magicnum == 2) ) {
-                reject_packet = 0;
-            }
-
-            if ((reject_packet) && (radioBuffer.header.magicnum == myshortnum-1 || radioBuffer.header.magicnum == myshortnum+1)) {
-                reject_packet = 0;
-            }
-            if (radioBuffer.header.magicnum ==  0) reject_packet = 1;
             if (reject_packet) {
                 LOG_INFO("MagicNumber: Dropping received packet based on mismatch");
                 return;
@@ -633,9 +632,9 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->id = radioBuffer.header.id;
             mp->channel = radioBuffer.header.channel;
 #ifdef FLAMINGO
-            //assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
-            mp->hop_limit = radioBuffer.header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK ;
-            mp->hop_start = radioBuffer.header.hop_start & PACKET_FLAGS_HOP_START_MASK ;
+            // assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
+            mp->hop_limit = radioBuffer.header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK;
+            mp->hop_start = radioBuffer.header.hop_start & PACKET_FLAGS_HOP_START_MASK;
 #else
             assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
             mp->hop_limit = radioBuffer.header.flags & PACKET_FLAGS_HOP_LIMIT_MASK;
@@ -647,7 +646,8 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->next_hop = mp->hop_start == 0 ? NO_NEXT_HOP_PREFERENCE : radioBuffer.header.next_hop;
             mp->relay_node = mp->hop_start == 0 ? NO_RELAY_NODE : radioBuffer.header.relay_node;
 #ifdef FLAMINGO
-            LOG_DEBUG("RX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", mp->from, mp->to, mp->id, mp->channel, mp->hop_start, mp->hop_limit);
+            LOG_DEBUG("RX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", mp->from, mp->to, mp->id,
+                      mp->channel, mp->hop_start, mp->hop_limit);
 #endif
             addReceiveMetadata(mp);
 

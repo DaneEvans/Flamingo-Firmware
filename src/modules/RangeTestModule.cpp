@@ -42,6 +42,9 @@ uint32_t packetSequence = 0;
 #ifndef SNR_MINIMUM     // SNR_MIN from config
 #define SNR_MINIMUM 3.0 // send three beeps if below this threadhold
 #endif
+#ifndef SNR_TWOBEEPS
+#define SNR_TWOBEEPS 6.0 // send two beeps if below this threshold
+#endif
 
 #define SNR_BUFFER_SIZE 3 // 3 packets seem to be enough for a decent average
 
@@ -247,12 +250,19 @@ ProcessMessage RangeTestModuleRadio::handleReceived(const meshtastic_MeshPacket 
             if (snr_buffer_ptr >= SNR_BUFFER_SIZE)
                 snr_buffer_ptr = 0; // wrap pointer
             uint8_t num_tones = 1;
-            if ((snr_buffer_count == SNR_BUFFER_SIZE) && snr_last_average < SNR_MINIMUM) {
-                num_tones = 3; // set max tones regardless of RSSI value
-            } else if (mp.rx_rssi < -110) {
-                num_tones = 3;
-            } else if (mp.rx_rssi < -90) {
-                num_tones = 2;
+            if (snr_buffer_count == SNR_BUFFER_SIZE) {
+                if (snr_last_average < SNR_MINIMUM) {
+                    num_tones = 3; // set max tones regardless of RSSI value
+                } else if (snr_last_average < SNR_TWOBEEPS) {
+                    num_tones = 2;
+                }
+            } else {
+                // use RSSI until we get enough packets for SNR
+                if (mp.rx_rssi < -110) {
+                    num_tones = 3;
+                } else if (mp.rx_rssi < -80) {
+                    num_tones = 2;
+                }
             }
             LOG_DEBUG("SNR calculated for LED or buzzer. : SNR_AVG=%.2f, RSSI= %i, tones=%i", snr_last_average, mp.rx_rssi,
                       num_tones);

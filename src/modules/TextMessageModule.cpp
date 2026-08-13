@@ -52,9 +52,9 @@ void parseAdmin(pb_size_t size, char *payload, bool is_dm)
     // this is an ADMIN message
     char adminBuf[MAX_ADMIN_MSG + 1] = "adrt on xxxx"; // targeted to specific node
     auto node = nodeDB->getMeshNode(myNodeInfo.my_node_num);
-    const char *sender = (node) ? node->user.short_name : "????";
+    const char *myShortName = (node) ? node->user.short_name : "????";
     for (int i = 0; i < 4; i++) {
-        adminBuf[i + 8] = tolower(sender[i]);
+        adminBuf[i + 8] = tolower(myShortName[i]);
     }
     new_size = (size < MAX_ADMIN_MSG) ? size : MAX_ADMIN_MSG;
     strncpy(local_payload, payload, new_size);
@@ -65,7 +65,7 @@ void parseAdmin(pb_size_t size, char *payload, bool is_dm)
     }
 
     if (strcmp(adminBuf, local_payload) == 0) {
-        LOG_INFO("Turning Dynamic Rangetest ON targeted at node: %s", sender);
+        LOG_INFO("Turning Dynamic Rangetest ON targeted at node: %s", myShortName);
         setRtDynamicEnable(1);
         setRtHop(0);
     }
@@ -73,6 +73,17 @@ void parseAdmin(pb_size_t size, char *payload, bool is_dm)
     else if (strcmp("adni", local_payload) == 0) {
         nodeInfoModule->scheduleNodeInfoCheck(FLAMINGO_NODEINFO_MAXMINUTES * 60);
         LOG_INFO("Scheduling NodeInfo packet sometimes in the next 15 minutes");
+    } else if (size > 5 && strncmp("adni", local_payload, 4) == 0) {
+        // check if this is a targeted adni command to this node, i.e 'adni xxxx'
+        strcpy(adminBuf, "adni ");
+        for (int i = 0; i < 4; i++) {
+            adminBuf[i + 5] = tolower(myShortName[i]);
+        }
+        adminBuf[9] = '\0';
+        if (strncmp(adminBuf, local_payload, 9) == 0) {
+            nodeInfoModule->scheduleNodeInfoCheck(FLAMINGO_NODEINFO_MAXMINUTES * 60);
+            LOG_INFO("Scheduling NodeInfo packet sometimes in the next 15 minutes");
+        }
     }
 #endif
     else if (is_dm && strcmp("adrt on", local_payload) == 0) {

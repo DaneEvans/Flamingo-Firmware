@@ -8,12 +8,15 @@
  * The RangeTestModule class is an OSThread that runs the module.
  * The RangeTestModuleRadio class handles sending and receiving packets.
  */
-#include "RangeTestModule.h"
+#ifdef FLAMINGO
+#include "Default.h"
+#endif
 #include "FSCommon.h"
 #include "MeshService.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "RTC.h"
+#include "RangeTestModule.h"
 #include "Router.h"
 #include "SPILock.h"
 #include "airtime.h"
@@ -21,6 +24,12 @@
 #include "gps/GeoCoord.h"
 #include <Arduino.h>
 #include <Throttle.h>
+#if defined(FLAMINGO) && defined(FLAMINGO_BUZZER)
+#include "BuzzerModule.h"
+#endif
+#if defined(FLAMINGO) && defined(FLAMINGO_RT_LED)
+#include "BlinkModule.h"
+#endif
 
 RangeTestModule *rangeTestModule;
 RangeTestModuleRadio *rangeTestModuleRadio;
@@ -28,6 +37,30 @@ RangeTestModuleRadio *rangeTestModuleRadio;
 RangeTestModule::RangeTestModule() : concurrency::OSThread("RangeTest") {}
 
 uint32_t packetSequence = 0;
+
+#ifdef FLAMINGO
+#ifndef SNR_MINIMUM     // SNR_MIN from config
+#define SNR_MINIMUM 3.0 // send three beeps if below this threadhold
+#endif
+
+#define SNR_BUFFER_SIZE 3 // 3 packets seem to be enough for a decent average
+
+float snr_buffer[SNR_BUFFER_SIZE]; // SNR values of last SNR_BUFFER_SIZE packets
+float snr_last_average = 0.0;      // SNR average of last SNR_BUFFER_SIZE packets
+uint8_t snr_buffer_ptr = 0;        // circular buffer pointer into snr_buffer
+uint8_t snr_buffer_count = 0;      // Used to track that received min number of packets to compute SNR average
+
+float RangeTestGetSnrAverage()
+{
+    return snr_last_average;
+}
+
+bool RangeTestIsValidSnrAverage()
+{
+    return snr_buffer_count == SNR_BUFFER_SIZE;
+}
+
+#endif
 
 int32_t RangeTestModule::runOnce()
 {
@@ -46,12 +79,36 @@ int32_t RangeTestModule::runOnce()
     // Fixed position is useful when testing indoors.
     // config.position.fixed_position = 1;
 
+#ifdef FLAMINGO
+    // always disable saving of range test data as we don't want to waste cycles doing this
+    moduleConfig.range_test.save = 0;
+#endif
+
     uint32_t senderHeartbeat = moduleConfig.range_test.sender * 1000;
     if (moduleConfig.range_test.enabled) {
 
         if (firstTime) {
             rangeTestModuleRadio = new RangeTestModuleRadio();
+#ifdef FLAMINGO
+            // All Cave nodes that are part of the mesh should have have this enabled
+            // with Soft RT on/off without reboot, every radio that
+            // has range_test enabled can possibly be a sender.
+            // So, never disable this thread
 
+            firstTime = 0;
+            LOG_INFO("Init Range Test Module -- Sender");
+            started = millis(); // make a note of when we started
+            if (!getRtDynanmicEnable()) {
+                LOG_INFO("Range Test Module is soft-disabled.");
+                return (senderHeartbeat);
+            }
+
+            snr_buffer_ptr = 0;
+            snr_buffer_count = 0;
+            for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++)
+                snr_buffer[i] = 0;
+            return (5000); // Sending first message 5 seconds after initialization.
+#else
             firstTime = 0;
 
             if (moduleConfig.range_test.clear_on_reboot) {
@@ -68,18 +125,40 @@ int32_t RangeTestModule::runOnce()
                 return disable();
                 // This thread does not need to run as a receiver
             }
+#endif
         } else {
 
             if (moduleConfig.range_test.sender) {
+#ifdef FLAMINGO
+                if (!getRtDynanmicEnable()) {
+                    LOG_INFO("Range Test Module is soft-disabled.");
+                    lastRtEnable = 0;
+                    return (senderHeartbeat);
+                }
+
+                if (lastRtEnable != getRtDynanmicEnable()) {
+                    // reset start time
+                    started = millis();
+                    lastRtEnable = getRtDynanmicEnable();
+                }
+#endif
                 // If sender
                 LOG_INFO("Range Test Module - Sending heartbeat every %d ms", (senderHeartbeat));
-
+#ifdef FLAMINGO
+#if !MESHTASTIC_EXCLUDE_GPS
                 LOG_INFO("gpsStatus->getLatitude()     %d", gpsStatus->getLatitude());
                 LOG_INFO("gpsStatus->getLongitude()    %d", gpsStatus->getLongitude());
                 LOG_INFO("gpsStatus->getHasLock()      %d", gpsStatus->getHasLock());
                 LOG_INFO("gpsStatus->getDOP()          %d", gpsStatus->getDOP());
                 LOG_INFO("fixed_position()             %d", config.position.fixed_position);
-
+#endif
+#else
+                LOG_INFO("gpsStatus->getLatitude()     %d", gpsStatus->getLatitude());
+                LOG_INFO("gpsStatus->getLongitude()    %d", gpsStatus->getLongitude());
+                LOG_INFO("gpsStatus->getHasLock()      %d", gpsStatus->getHasLock());
+                LOG_INFO("gpsStatus->getDOP()          %d", gpsStatus->getDOP());
+                LOG_INFO("fixed_position()             %d", config.position.fixed_position);
+#endif
                 // Only send packets if the channel is less than 25% utilized.
                 if (airTime->isTxAllowedChannelUtil(true)) {
                     rangeTestModuleRadio->sendPayload();
@@ -116,7 +195,13 @@ void RangeTestModuleRadio::sendPayload(NodeNum dest, bool wantReplies)
     meshtastic_MeshPacket *p = allocDataPacket();
     p->to = dest;
     p->decoded.want_response = wantReplies;
+#ifdef FLAMINGO
+    // Conditionally hop Range Test packets
+    p->hop_limit = getRtHop() ? Default::getConfiguredOrDefaultHopLimit(config.lora.hop_limit) : 0;
+#else
     p->hop_limit = 0;
+#endif
+
     p->want_ack = false;
 
     packetSequence++;
@@ -150,6 +235,54 @@ ProcessMessage RangeTestModuleRadio::handleReceived(const meshtastic_MeshPacket 
                 appendFile(mp);
             }
 
+#ifdef FLAMINGO
+            // Compute SNR average of last SNR_BUFFER_SIZE packets
+            snr_buffer[snr_buffer_ptr] = mp.rx_snr; // save SNR value
+            if (snr_buffer_count < SNR_BUFFER_SIZE) {
+                snr_buffer_count++; // track that we have received enough packets to compute an average
+            }
+            if (snr_buffer_count == SNR_BUFFER_SIZE) {
+                /* We have enough packets to compute the average*/
+                snr_last_average = 0.0;
+                for (uint8_t i = 0; i < SNR_BUFFER_SIZE; i++)
+                    snr_last_average += snr_buffer[i];
+                snr_last_average = snr_last_average / SNR_BUFFER_SIZE;
+            }
+            /* increment buffer pointer after average */
+            snr_buffer_ptr++;
+            if (snr_buffer_ptr >= SNR_BUFFER_SIZE)
+                snr_buffer_ptr = 0; // wrap pointer
+            uint8_t num_tones = 1;
+            if ((snr_buffer_count == SNR_BUFFER_SIZE) && snr_last_average < SNR_MINIMUM) {
+                num_tones = 3; // set max tones regardless of RSSI value
+            } else if (mp.rx_rssi < -110) {
+                num_tones = 3;
+            } else if (mp.rx_rssi < -90) {
+                num_tones = 2;
+            }
+            LOG_DEBUG("SNR calculated for LED or buzzer. : SNR_AVG=%.2f, RSSI= %i, tones=%i", snr_last_average, mp.rx_rssi,
+                      num_tones);
+#ifdef FLAMINGO_BUZZER
+            buzzerModule->startTone(1, 250, 100, num_tones);
+#endif
+#ifdef FLAMINGO_RT_LED
+            LEDColor rtColor;
+
+            if (num_tones == 3) {
+                rtColor = LEDColor::Red;
+            } else if (num_tones == 2) {
+                rtColor = LEDColor::Amber;
+            } else if (num_tones == 1) {
+                rtColor = LEDColor::Green;
+            }
+            LOG_DEBUG("Range test LED: SNR_AVG=%.2f, RSSI= %i, tones=%i, colour=%i", snr_last_average, mp.rx_rssi, num_tones,
+                      rtColor);
+
+            if (blinkModule) {
+                blinkModule->setRangeTestLED(rtColor);
+            }
+#endif
+#endif
             /*
             NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&mp));
 

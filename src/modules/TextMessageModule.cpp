@@ -1,21 +1,225 @@
 #include "TextMessageModule.h"
 #include "MeshService.h"
 #include "MessageStore.h"
+#ifdef FLAMINGO
+#include "MeshTypes.h"
+#endif
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "buzz.h"
 #include "configuration.h"
+#ifdef FLAMINGO
+#include "RangeTestModule.h"
+#ifdef FLAMINGO_CONNECTION_LED
+#include "BlinkModule.h"
+#endif
+#endif
+
 #include "graphics/Screen.h"
 #include "graphics/SharedUIDisplay.h"
 #include "graphics/draw/MessageRenderer.h"
 #include "main.h"
 TextMessageModule *textMessageModule;
 
+#ifdef FLAMINGO
+#define MAX_ADMIN_MSG 31
+
+void parseAdmin(pb_size_t size, char *payload, bool isToUs)
+{
+    char local_payload[MAX_ADMIN_MSG + 1];
+    pb_size_t new_size;
+    if (size < 4)
+        return; // too short to be an ADMIN message
+
+    // Check for Alert Bell emojii, toggle RT if alert bell received
+    if (payload[0] == 0xF0 && payload[1] == 0x9F && payload[2] == 0x94 && payload[3] == 0x94) {
+        if (!isToUs) {
+            LOG_INFO("Ignoring Alert Bell from non-direct message");
+            return;
+        }
+        if (getRtDynanmicEnable()) {
+            LOG_INFO("Found Alert Bell, Dynamic Rangetest OFF ");
+            setRtDynamicEnable(0);
+        } else {
+            LOG_INFO("Found Alert Bell, Dynamic Rangetest ON ");
+            setRtDynamicEnable(1);
+        }
+        return;
+    }
+
+    if (!((payload[0] == 'A' || payload[0] == 'a') && (payload[1] == 'D' || payload[1] == 'd')))
+        return;
+    // this is an ADMIN message
+    new_size = (size < MAX_ADMIN_MSG) ? size : MAX_ADMIN_MSG;
+    strncpy(local_payload, payload, new_size);
+    local_payload[new_size] = '\0';
+
+    for (int i = 0; i < new_size; i++) {
+        local_payload[i] = tolower(local_payload[i]);
+    }
+
+    if (strcmp("adrt on hop", local_payload) == 0 && isToUs) {
+        LOG_INFO("Turning Dynamic Rangetest ON with hop");
+        setRtDynamicEnable(1);
+        setRtHop(1);
+    } else if (strcmp("adrt on", local_payload) == 0 && isToUs) {
+        LOG_INFO("Turning Dynamic Rangetest ON");
+        setRtDynamicEnable(1);
+        setRtHop(0);
+    } else if (strcmp("adrt off", local_payload) == 0 && isToUs) {
+        LOG_INFO("Turning Dynamic Rangetest OFF");
+        setRtDynamicEnable(0);
+    } else if (strncmp("adrt delay", local_payload, 10) == 0 && new_size >= 13 && isToUs) {
+        if (strncmp("15", local_payload + 11, 2) == 0) {
+            LOG_INFO("Rangetest delay is 15");
+            moduleConfig.range_test.sender = 15;
+        } else if (strncmp("30", local_payload + 11, 2) == 0) {
+            LOG_INFO("Rangetest delay is 30");
+            moduleConfig.range_test.sender = 30;
+        } else if (strncmp("60", local_payload + 11, 2) == 0) {
+            LOG_INFO("Rangetest delay is 60");
+            moduleConfig.range_test.sender = 60;
+        }
+    }
+#ifdef FLAMINGO_CONNECTION_LED
+    else if (strncmp("adled default ", local_payload, 14) == 0) {
+        char color_str[20];
+        if (sscanf(local_payload + 14, "%s", color_str) == 1) {
+            LEDColor color;
+            bool valid = false;
+            if (strcmp(color_str, "off") == 0) {
+                color = LEDColor::Off;
+                valid = true;
+            } else if (strcmp(color_str, "red") == 0) {
+                color = LEDColor::Red;
+                valid = true;
+            } else if (strcmp(color_str, "green") == 0) {
+                color = LEDColor::Green;
+                valid = true;
+            } else if (strcmp(color_str, "yellow") == 0 || strcmp(color_str, "amber") == 0) {
+                color = LEDColor::Amber;
+                valid = true;
+            } else if (strcmp(color_str, "blue") == 0) {
+                color = LEDColor::Blue;
+                valid = true;
+            } else if (strcmp(color_str, "purple") == 0) {
+                color = LEDColor::Purple;
+                valid = true;
+            } else if (strcmp(color_str, "teal") == 0) {
+                color = LEDColor::Teal;
+                valid = true;
+            } else if (strcmp(color_str, "white") == 0) {
+                color = LEDColor::White;
+                valid = true;
+            }
+            if (valid) {
+                LOG_INFO("Setting Connection LED default to %s", color_str);
+                if (blinkModule) {
+                    blinkModule->setConnectionLEDDefault(color);
+                }
+            } else {
+                LOG_INFO("Invalid color for default: %s", color_str);
+            }
+        }
+    } else if (strncmp("adled ", local_payload, 6) == 0) {
+        char color_str[20];
+        unsigned long timeout = 0;
+        int num = sscanf(local_payload + 6, "%s %lu", color_str, &timeout);
+        if (num >= 1) {
+            LEDColor color;
+            bool valid = false;
+            if (strcmp(color_str, "off") == 0) {
+                color = LEDColor::Off;
+                valid = true;
+            } else if (strcmp(color_str, "red") == 0) {
+                color = LEDColor::Red;
+                valid = true;
+            } else if (strcmp(color_str, "green") == 0) {
+                color = LEDColor::Green;
+                valid = true;
+            } else if (strcmp(color_str, "yellow") == 0 || strcmp(color_str, "amber") == 0) {
+                color = LEDColor::Amber;
+                valid = true;
+            } else if (strcmp(color_str, "blue") == 0) {
+                color = LEDColor::Blue;
+                valid = true;
+            } else if (strcmp(color_str, "purple") == 0) {
+                color = LEDColor::Purple;
+                valid = true;
+            } else if (strcmp(color_str, "teal") == 0) {
+                color = LEDColor::Teal;
+                valid = true;
+            } else if (strcmp(color_str, "white") == 0) {
+                color = LEDColor::White;
+                valid = true;
+            }
+            if (valid) {
+                if (num == 2 && timeout > 0) {
+                    timeout *= 1000; // Convert seconds to milliseconds
+                    LOG_INFO("Setting Connection LED to %s with timeout %lu seconds", color_str, timeout / 1000);
+                    if (blinkModule) {
+                        blinkModule->setConnectionLED_cooldown(color, timeout);
+                    }
+                } else if (num == 1) {
+                    LOG_INFO("Setting Connection LED to %s", color_str);
+                    if (blinkModule) {
+                        blinkModule->setConnectionLED(color);
+                    }
+                }
+            } else {
+                LOG_INFO("Invalid color: %s", color_str);
+            }
+        }
+    }
+#endif
+}
+
+#ifdef DEBUG_PORT
+char textmsg[201];
+#endif
+
+#endif
+
 ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp)
 {
+#ifdef FLAMINGO
+    /*
+     Improve debug messages so that can parsed as part of log at Incident Command
+    */
+#if defined(DEBUG_PORT) && !defined(DEBUG_MUTE)
+    auto rssi = mp.rx_rssi;
+    auto &p = mp.decoded;
+    meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&mp));
+
+    LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d", mp.from, mp.id,
+             n->user.long_name, mp.rx_snr, mp.hop_limit, mp.hop_start);
+    uint16_t offset;
+    uint16_t bytes_left = p.payload.size;
+    bool do_loop = 1;
+    offset = 0;
+    /* apparently, the maximum size log message is about 150 characters. Deal this with this*/
+    while (do_loop) {
+        if (bytes_left <= 150) {
+            memset(textmsg, 0, sizeof(textmsg));
+            strncpy(textmsg, (char *)(p.payload.bytes + offset), bytes_left);
+            do_loop = 0;
+        } else {
+            memset(textmsg, 0, sizeof(textmsg));
+            strncpy(textmsg, (char *)(p.payload.bytes + offset), 150);
+            offset = offset + 150;
+            bytes_left = bytes_left - 150;
+        }
+        LOG_INFO("z=%s", textmsg);
+    }
+    // ADRT commands are accepted only on direct messages; ADLED is accepted on direct and channel messages
+    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp));
+
+#endif
+#else
 #if defined(DEBUG_PORT) && !defined(DEBUG_MUTE)
     auto &p = mp.decoded;
     LOG_INFO("Received text msg from=0x%0x, id=0x%x, msg=%.*s", mp.from, mp.id, p.payload.size, p.payload.bytes);
+#endif
 #endif
     // add packet ID to the rolling list of packets
     textPacketList[textPacketListIndex] = mp.id;

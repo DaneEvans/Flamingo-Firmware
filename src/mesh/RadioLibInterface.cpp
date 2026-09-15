@@ -638,6 +638,46 @@ void RadioLibInterface::handleReceiveInterrupt()
                 LOG_WARN("Ignore received packet without sender");
                 return;
             }
+#ifdef FLAMINGO
+#ifdef FLAMINGO_HOP_DEBUG
+            uint16_t myshortnum = get_myshortname_magicnumber();
+            uint16_t reject_packet = 1;
+            LOG_INFO("MagicNumber: MyShortNum: %d, RX packet headerMagicNum: %d", myshortnum, radioBuffer.header.magicnum);
+            if (myshortnum == 12 && (radioBuffer.header.magicnum == 20 || radioBuffer.header.magicnum == 11) ) {
+                reject_packet = 0;
+            }
+            
+            if (myshortnum == 20 && (radioBuffer.header.magicnum == 12 || radioBuffer.header.magicnum == 21) ) {
+                reject_packet = 0;
+            }
+             if (myshortnum == 1 && (radioBuffer.header.magicnum == 2) ) {
+                reject_packet = 0;
+            }
+
+            if ((reject_packet) && (radioBuffer.header.magicnum == myshortnum-1 || radioBuffer.header.magicnum == myshortnum+1)) {
+                reject_packet = 0;
+            }
+            if (radioBuffer.header.magicnum ==  0) reject_packet = 1;
+            if (reject_packet) {
+                LOG_INFO("MagicNumber: Dropping received packet based on mismatch");
+                return;
+            }
+#ifdef FLAMINGO_REJECT_PERCENTAGE
+            // reject a percentage of packets even if intended for us
+            long v = random(0, 100);
+            if (v < FLAMINGO_REJECT_PERCENTAGE) {
+                LOG_INFO("MagicNumber: Force dropping packet, random reject, %d < %d", v, FLAMINGO_REJECT_PERCENTAGE);
+                return;
+            }
+#endif
+            LOG_INFO("MagicNumber: Accepting received packet");
+#else
+            if (radioBuffer.header.magicnum != PACKET_HEADER_MAGIC_NUMBER) {
+                LOG_INFO("Dropping received packet for magic number mismatch");
+                return;
+            }
+#endif
+#endif
 
             // Note: we deliver _all_ packets to our router (i.e. our interface is intentionally promiscuous).
             // This allows the router and other apps on our node to sniff packets (usually routing) between other
@@ -649,15 +689,23 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->to = radioBuffer.header.to;
             mp->id = radioBuffer.header.id;
             mp->channel = radioBuffer.header.channel;
+#ifdef FLAMINGO
+            //assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
+            mp->hop_limit = radioBuffer.header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK ;
+            mp->hop_start = radioBuffer.header.hop_start & PACKET_FLAGS_HOP_START_MASK ;
+#else
             assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
             mp->hop_limit = radioBuffer.header.flags & PACKET_FLAGS_HOP_LIMIT_MASK;
             mp->hop_start = (radioBuffer.header.flags & PACKET_FLAGS_HOP_START_MASK) >> PACKET_FLAGS_HOP_START_SHIFT;
+#endif
             mp->want_ack = !!(radioBuffer.header.flags & PACKET_FLAGS_WANT_ACK_MASK);
             mp->via_mqtt = !!(radioBuffer.header.flags & PACKET_FLAGS_VIA_MQTT_MASK);
             // If hop_start is not set, next_hop and relay_node are invalid (firmware <2.3)
             mp->next_hop = mp->hop_start == 0 ? NO_NEXT_HOP_PREFERENCE : radioBuffer.header.next_hop;
             mp->relay_node = mp->hop_start == 0 ? NO_RELAY_NODE : radioBuffer.header.relay_node;
-
+#ifdef FLAMINGO
+            LOG_DEBUG("RX packet: from=0x%08x,to=0x%08x,id=0x%08x,Ch=0x%x, HopStart=%d, HopLim=%d", mp->from, mp->to, mp->id, mp->channel, mp->hop_start, mp->hop_limit);
+#endif
             addReceiveMetadata(mp);
 
             mp->which_payload_variant =

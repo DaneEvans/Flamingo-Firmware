@@ -1,0 +1,199 @@
+name: Sync Upstream
+# Keeps dev and master in sync with the meshtastic upstream
+# Applies the Flamingo patch (specified by hash)
+permissions:
+  contents: read
+
+env:
+  # Required, URL to upstream (fork base)
+  UPSTREAM_URL: https://github.com/meshtastic/firmware.git
+  # Required, token to authenticate bot, could use ${{ secrets.GITHUB_TOKEN }}
+  # Over here, we use a PAT instead to authenticate workflow file changes.
+  WORKFLOW_TOKEN: ${{ secrets.GH_PAT }}
+  # Optional, defaults to main
+  UPSTREAM_BRANCH: master
+  # Optional, defaults to UPSTREAM_BRANCH
+  DOWNSTREAM_BRANCH: meshtastic_master
+  # Optional fetch arguments
+  FETCH_ARGS: ""
+  # Optional merge arguments
+  MERGE_ARGS: ""
+  # Optional push arguments
+  PUSH_ARGS: ""
+  # Optional toggle to spawn time logs (keeps action active)
+  SPAWN_LOGS: false # "true" or "false"
+
+# This runs every day on 1801 UTC
+on:
+  schedule:
+    - cron: 01 3/4 * * *
+  push:
+    branches:
+      - flamingo
+
+  # Allows manual workflow run (must in default branch to work)
+  workflow_dispatch:
+
+jobs:
+  syncUpstream_master:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: GitHub Sync to Upstream Repository
+        uses: dabreadman/sync-upstream-repo@v1.3.0
+        with:
+          upstream_repo: ${{ env.UPSTREAM_URL }}
+          upstream_branch: master
+          downstream_branch: meshtastic_master
+          token: ${{ env.WORKFLOW_TOKEN }}
+          fetch_args: ${{ env.FETCH_ARGS }}
+          merge_args: ${{ env.MERGE_ARGS }}
+          push_args: ${{ env.PUSH_ARGS }}
+          spawn_logs: ${{ env.SPAWN_LOGS }}
+
+  syncUpstream_develop:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: GitHub Sync to Upstream Repository
+        uses: dabreadman/sync-upstream-repo@v1.3.0
+        with:
+          upstream_repo: ${{ env.UPSTREAM_URL }}
+          upstream_branch: develop
+          downstream_branch: meshtastic_develop
+          token: ${{ env.WORKFLOW_TOKEN }}
+          fetch_args: ${{ env.FETCH_ARGS }}
+          merge_args: ${{ env.MERGE_ARGS }}
+          push_args: ${{ env.PUSH_ARGS }}
+          spawn_logs: ${{ env.SPAWN_LOGS }}
+
+  apply_flamingo_patch_master:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: syncUpstream_master
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: meshtastic_master
+          fetch-depth: 0
+
+      - name: Merge flamingo patch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b temp
+          git remote -v 
+          git fetch --tags
+          git fetch origin flamingo:flamingo 2>/dev/null || true
+          git merge flamingo
+
+      - name: Force push temp branch to flamingo_updated
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push --force origin temp:flamingo_updated
+
+  apply_flamingo_patch_dev:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: syncUpstream_develop
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: meshtastic_develop
+          fetch-depth: 0
+
+      - name: Merge flamingo patch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b temp
+          git remote -v 
+          git fetch --tags
+          git fetch origin flamingo:flamingo 2>/dev/null || true
+          git merge flamingo
+
+      - name: Force push temp branch to flamingo_updated_dev
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push --force origin temp:flamingo_updated_dev
+
+  notify_sync_failure:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    needs:
+      - syncUpstream_master
+      - syncUpstream_develop
+      - apply_flamingo_patch_master
+      - apply_flamingo_patch_dev
+    if: ${{ always() && (needs.syncUpstream_master.result == 'failure' || needs.syncUpstream_develop.result == 'failure' || needs.apply_flamingo_patch_master.result == 'failure' || needs.apply_flamingo_patch_dev.result == 'failure') }}
+    steps:
+      - name: Create or update failure issue
+        uses: actions/github-script@v8
+        env:
+          SYNC_MASTER_RESULT: ${{ needs.syncUpstream_master.result }}
+          SYNC_DEVELOP_RESULT: ${{ needs.syncUpstream_develop.result }}
+          PATCH_MASTER_RESULT: ${{ needs.apply_flamingo_patch_master.result }}
+          PATCH_DEV_RESULT: ${{ needs.apply_flamingo_patch_dev.result }}
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const issuePrefix = '[sync_upstream] Run failed';
+            const marker = '<!-- sync_upstream_failure -->';
+
+            const details = [
+              'A `Sync Upstream` workflow failure was detected.',
+              '',
+              `Repository: ${context.repo.owner}/${context.repo.repo}`,
+              `Workflow: ${context.workflow}`,
+              `Trigger: ${context.eventName}`,
+              `Run number: ${context.runNumber}`,
+              `Run URL: ${runUrl}`,
+              '',
+              'Job results:',
+              `- syncUpstream_master: ${process.env.SYNC_MASTER_RESULT}`,
+              `- syncUpstream_develop: ${process.env.SYNC_DEVELOP_RESULT}`,
+              `- apply_flamingo_patch_master: ${process.env.PATCH_MASTER_RESULT}`,
+              `- apply_flamingo_patch_dev: ${process.env.PATCH_DEV_RESULT}`,
+            ].join('\n');
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existing = openIssues.find(issue =>
+              !issue.pull_request &&
+              (issue.title.startsWith(issuePrefix) || (issue.body || '').includes(marker))
+            );
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Another workflow failure was detected.\n\n${details}`,
+              });
+              core.info(`Updated existing issue #${existing.number}`);
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `${issuePrefix} (${new Date().toISOString().slice(0,10)})`,
+                body: `${marker}\n\n${details}`,
+              });
+              core.info('Created new sync failure issue');
+            }

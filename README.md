@@ -1,39 +1,38 @@
-<div align="center" markdown="1">
+Flamingo exists to modify Meshtastic firmware for use in caves, and in particular cave rescue.
 
-<img src=".github/meshtastic_logo.png" alt="Meshtastic Logo" width="80"/>
-<h1>Meshtastic Firmware</h1>
+## Flashing
 
-![GitHub release downloads](https://img.shields.io/github/downloads/meshtastic/firmware/total)
-[![CI](https://img.shields.io/github/actions/workflow/status/meshtastic/firmware/main_matrix.yml?branch=master&label=actions&logo=github&color=yellow)](https://github.com/meshtastic/firmware/actions/workflows/ci.yml)
-[![CLA assistant](https://cla-assistant.io/readme/badge/meshtastic/firmware)](https://cla-assistant.io/meshtastic/firmware)
-[![Fiscal Contributors](https://opencollective.com/meshtastic/tiers/badge.svg?label=Fiscal%20Contributors&color=deeppink)](https://opencollective.com/meshtastic/)
-[![Vercel](https://img.shields.io/static/v1?label=Powered%20by&message=Vercel&style=flat&logo=vercel&color=000000)](https://vercel.com?utm_source=meshtastic&utm_campaign=oss)
+At the moment we have no automated process.
 
-<a href="https://trendshift.io/repositories/5524" target="_blank"><img src="https://trendshift.io/api/badge/repositories/5524" alt="meshtastic%2Ffirmware | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+Check out the Flamingo branch or tag that you wish to use, and then use platform IO in VSCode to build and upload the firmware.
 
-</div>
+## Repository
 
-</div>
+This repository is a clone of the base Meshtastic repository. It is intentionally not a clone in order to better maintain separation of Flamingo and Meshtastic concerns, and make it easier to maintain.
 
-<div align="center">
-	<a href="https://meshtastic.org">Website</a>
-	-
-	<a href="https://meshtastic.org/docs/">Documentation</a>
-</div>
+### Branches
 
-## Overview
+- Main: Houses the readmes, and github CI actions.
+- meshtastic_master: Shadows the Meshtastic/firmware:master branch - kept in sync by CI.
+- meshtastic_develop: Shadows the Meshtastic/firmware:develop branch - kept in sync by CI.
+- flamingo: This is the branch that contains all of the flamingo changes. This is what changes to the flamingo firmware should be based off, and merged back to.
+- flamingo_updated: This applies the flamingo patch to meshtastic_master
+- flamingo_updated_dev: This applies the flamingo patch to meshtastic_develop
 
-This repository contains the official device firmware for Meshtastic, an open-source LoRa mesh networking project designed for long-range, low-power communication without relying on internet or cellular infrastructure. The firmware supports various hardware platforms, including ESP32, nRF52, RP2040/RP2350, and Linux-based devices.
+### Tags
 
-Meshtastic enables text messaging, location sharing, and telemetry over a decentralized mesh network, making it ideal for outdoor adventures, emergency preparedness, and remote operations.
+Meshtastic has tags.
 
-### Get Started
+I think what we are going to have to do is have flamingo tags as needed, and maintain a compatability table.
 
-- 🔧 **[Building Instructions](https://meshtastic.org/docs/development/firmware/build)** – Learn how to compile the firmware from source.
-- ⚡ **[Flashing Instructions](https://meshtastic.org/docs/getting-started/flashing-firmware/)** – Install or update the firmware on your device.
+Ideally the flamingo code is portable, and could be cherry-picked back onto an earlier version if needed, but as that's not typically going to be necessary, and is unlikely to happen all that much, the main purpose is to make it easy to work on, and easier to see the changes between the current versions, and what existed in the past, or roll back to an older configuration.
 
-Join our community and help improve Meshtastic! 🚀
+To that end, we maintain flamingo tags as well.
+These should be able to be merged onto later meshtastic versions with minimal impact (excluding conflicts.)
 
-## Stats
-
-![Alt](https://repobeats.axiom.co/api/embed/8025e56c482ec63541593cc5bd322c19d5c0bdcf.svg "Repobeats analytics image")
+| Flamingo version         | Meshtastic base | Comments                                          |
+| ------------------------ | --------------- | ------------------------------------------------- |
+| flamingo_2511            | v2.7.9          | Starting to use this Flamingo-firmware repo       |
+| Flamingo_fw2_7_generated | v2.7.9          | Huntsville - added FLAMINGO define                |
+| flamingo_2510            | v2.7.10         | Aussie, pre #defines                              |
+| jun2025                  | v2.5.20         | Huntsville - buzzer pin is set for wismesh pocket |

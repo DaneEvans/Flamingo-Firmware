@@ -37,6 +37,10 @@ PIN_LED_CONN_B=n
 
 ## Command List
 
+### Admin help
+
+- `AD HELP` - Sends a compact command summary for Flamingo admin commands.
+
 ### Range test
 
 _Needs rangetest module turned on (on both transmitter and reciever)_
@@ -46,6 +50,26 @@ ADRT Off - Set the soft switch so the node does not transmit
 ADRT on hop - turn on dynamic rangetest with hopping.
 Alert bel - Toggle rangetest
 _When present the Rangetest LED, or buzzer will respond to these packets._
+
+### Auto reply (ADAR)
+
+Auto-reply sends a 🤖 emoji reaction-style reply to matching incoming text messages.
+
+- `ADAR` - Show current auto-reply state.
+- `ADAR ON` - Enable auto-reply (keeps current mode).
+- `ADAR OFF` - Disable auto-reply.
+- `ADAR TOGGLE` - Toggle enabled/disabled.
+- `ADAR ALL` - Reply on all channels and DMs.
+- `ADAR PRIM` - Reply only to primary channel traffic (`ch0`, not DM-only traffic).
+- `ADAR PRIM+DM` - Reply to primary channel traffic and all DMs.
+- `ADAR SEC` - Reply only to secondary channels (`ch1+`, not DMs on primary).
+- `ADAR SEC+DM` - Reply to secondary channel traffic and all DMs.
+
+Notes:
+
+- ADAR state is persisted across reboot.
+- ADAR ignores emoji/reaction packets (`emoji == 1`) to avoid loops.
+- Replies are sent on the same channel with `reply_id` set to the original message id.
 
 ### Connectivity LED
 

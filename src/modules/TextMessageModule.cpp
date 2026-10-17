@@ -2,7 +2,12 @@
 #include "MeshService.h"
 #include "MessageStore.h"
 #ifdef FLAMINGO
+#include "FlamingoAutoReply.h"
 #include "MeshTypes.h"
+#include "RangeTestModule.h"
+#ifdef FLAMINGO_CONNECTION_LED
+#include "BlinkModule.h"
+#endif
 #endif
 #include "FSCommon.h"
 #include "NodeDB.h"
@@ -10,12 +15,6 @@
 #include "SPILock.h"
 #include "buzz.h"
 #include "configuration.h"
-#ifdef FLAMINGO
-#include "RangeTestModule.h"
-#ifdef FLAMINGO_CONNECTION_LED
-#include "BlinkModule.h"
-#endif
-#endif
 
 #include "graphics/Screen.h"
 #include "graphics/SharedUIDisplay.h"
@@ -24,13 +23,9 @@
 TextMessageModule *textMessageModule;
 
 #ifdef FLAMINGO
-static void loadAutoReplyState();
-#endif
-
-#ifdef FLAMINGO
 TextMessageModule::TextMessageModule() : SinglePortModule("text", meshtastic_PortNum_TEXT_MESSAGE_APP)
 {
-    loadAutoReplyState();
+    flamingo::adar::loadState();
 }
 #else
 TextMessageModule::TextMessageModule() : SinglePortModule("text", meshtastic_PortNum_TEXT_MESSAGE_APP) {}
@@ -38,145 +33,8 @@ TextMessageModule::TextMessageModule() : SinglePortModule("text", meshtastic_Por
 
 #ifdef FLAMINGO
 #define MAX_ADMIN_MSG 31
-#define AUTO_REPLY_PERSIST_PATH "/prefs/adar.proto"
 
-static bool autoReplyEnabled = false;
-
-enum class AutoReplyMode : uint8_t {
-    ALL = 0,
-    PRIM = 1,
-    PRIM_DM = 2,
-    SEC = 3,
-    SEC_DM = 4,
-};
-
-static AutoReplyMode autoReplyMode = AutoReplyMode::ALL;
-
-static const char *autoReplyModeName(AutoReplyMode mode)
-{
-    switch (mode) {
-    case AutoReplyMode::ALL:
-        return "ALL";
-    case AutoReplyMode::PRIM:
-        return "PRIM";
-    case AutoReplyMode::PRIM_DM:
-        return "PRIM+DM";
-    case AutoReplyMode::SEC:
-        return "SEC";
-    case AutoReplyMode::SEC_DM:
-        return "SEC+DM";
-    default:
-        return "ALL";
-    }
-}
-
-static void sendAutoReplyState(NodeNum to)
-{
-    if (to == 0)
-        return;
-
-    meshtastic_MeshPacket *p = router->allocForSending();
-    p->to = to;
-    p->channel = 0;
-    p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-    p->want_ack = false;
-    p->decoded.want_response = false;
-
-    char msg[31];
-    snprintf(msg, sizeof(msg), "ADAR %s %s", autoReplyEnabled ? "ON" : "OFF", autoReplyModeName(autoReplyMode));
-    p->decoded.payload.size = strlen(msg);
-    memcpy(p->decoded.payload.bytes, msg, p->decoded.payload.size);
-    service->sendToMesh(p);
-}
-
-static void sendAdminHelp(NodeNum to)
-{
-    if (to == 0)
-        return;
-
-    static const char *helpLines[] = {
-        "AD HELP",
-        "ADRT: ON|OFF|ON HOP|DELAY 15/30/60",
-        "ADAR: ON|OFF|TOGGLE|ALL|PRIM|PRIM+DM|SEC|SEC+DM",
-        "ADAR (no arg): show current state",
-#ifdef FLAMINGO_CONNECTION_LED
-        "ADLED: <color> [timeout] | DEFAULT <color>",
-#endif
-    };
-
-    for (const char *line : helpLines) {
-        meshtastic_MeshPacket *p = router->allocForSending();
-        p->to = to;
-        p->channel = 0;
-        p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-        p->want_ack = false;
-        p->decoded.want_response = false;
-        p->decoded.payload.size = strlen(line);
-        memcpy(p->decoded.payload.bytes, line, p->decoded.payload.size);
-        service->sendToMesh(p);
-    }
-}
-
-static void loadAutoReplyState()
-{
-    if (!FSCom.exists(AUTO_REPLY_PERSIST_PATH)) {
-        return;
-    }
-
-    File f = FSCom.open(AUTO_REPLY_PERSIST_PATH, FILE_O_READ);
-    if (!f) {
-        return;
-    }
-
-    uint8_t buffer[8] = {0};
-    size_t readSize = f.read(buffer, sizeof(buffer));
-    if (readSize > 0) {
-        autoReplyEnabled = buffer[0] != 0;
-        if (readSize > 1 && buffer[1] <= static_cast<uint8_t>(AutoReplyMode::SEC_DM)) {
-            autoReplyMode = static_cast<AutoReplyMode>(buffer[1]);
-        }
-    }
-    f.close();
-}
-
-static void saveAutoReplyState()
-{
-#ifdef FSCom
-    spiLock->lock();
-    FSCom.mkdir("/prefs");
-    spiLock->unlock();
-#endif
-
-    File f = FSCom.open(AUTO_REPLY_PERSIST_PATH, FILE_O_WRITE);
-    if (f) {
-        uint8_t buffer[8] = {0};
-        buffer[0] = autoReplyEnabled ? 1 : 0;
-        buffer[1] = static_cast<uint8_t>(autoReplyMode);
-        f.write(buffer, sizeof(buffer));
-        f.close();
-    }
-}
-
-static void sendAutoReply(uint32_t from, bool wasBroadcast, uint8_t channel, uint32_t replyId)
-{
-    if (!autoReplyEnabled || from == 0 || from == nodeDB->getNodeNum()) {
-        return;
-    }
-    meshtastic_MeshPacket *p = router->allocForSending();
-    p->to = wasBroadcast ? NODENUM_BROADCAST : from;
-    p->channel = channel;
-    p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-    p->want_ack = false;
-    p->decoded.want_response = false;
-    p->decoded.emoji = 1;
-    p->decoded.reply_id = replyId;
-    static constexpr char robotReply[] = "🤖";
-    p->decoded.payload.size = strlen(robotReply);
-    memcpy(p->decoded.payload.bytes, robotReply, p->decoded.payload.size);
-    service->sendToMesh(p);
-}
-
-void parseAdmin(pb_size_t size, char *payload, bool isToUs, NodeNum from)
+void parseAdmin(pb_size_t size, char *payload, bool isToUs, NodeNum from, uint32_t replyId, uint8_t channel)
 {
     char local_payload[MAX_ADMIN_MSG + 1];
     pb_size_t new_size;
@@ -214,8 +72,6 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs, NodeNum from)
         LOG_INFO("Turning Dynamic Rangetest ON with hop");
         setRtDynamicEnable(1);
         setRtHop(1);
-    } else if (strcmp("ad help", local_payload) == 0 && isToUs) {
-        sendAdminHelp(from);
     } else if (strcmp("adrt on", local_payload) == 0 && isToUs) {
         LOG_INFO("Turning Dynamic Rangetest ON");
         setRtDynamicEnable(1);
@@ -234,53 +90,8 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs, NodeNum from)
             LOG_INFO("Rangetest delay is 60");
             moduleConfig.range_test.sender = 60;
         }
-    } else if (strcmp("adar", local_payload) == 0 && isToUs) {
-        sendAutoReplyState(from);
-    } else if (strcmp("adar on", local_payload) == 0 && isToUs) {
-        autoReplyEnabled = true;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply ON (%s)", autoReplyModeName(autoReplyMode));
-        sendAutoReplyState(from);
-    } else if (strcmp("adar off", local_payload) == 0 && isToUs) {
-        autoReplyEnabled = false;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply OFF (%s)", autoReplyModeName(autoReplyMode));
-        sendAutoReplyState(from);
-    } else if (strcmp("adar all", local_payload) == 0 && isToUs) {
-        autoReplyMode = AutoReplyMode::ALL;
-        autoReplyEnabled = true;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply ON (ALL)");
-        sendAutoReplyState(from);
-    } else if (strcmp("adar prim", local_payload) == 0 && isToUs) {
-        autoReplyMode = AutoReplyMode::PRIM;
-        autoReplyEnabled = true;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply ON (PRIM)");
-        sendAutoReplyState(from);
-    } else if ((strcmp("adar prim+dm", local_payload) == 0 || strcmp("adar prim dm", local_payload) == 0) && isToUs) {
-        autoReplyMode = AutoReplyMode::PRIM_DM;
-        autoReplyEnabled = true;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply ON (PRIM+DM)");
-        sendAutoReplyState(from);
-    } else if (strcmp("adar sec", local_payload) == 0 && isToUs) {
-        autoReplyMode = AutoReplyMode::SEC;
-        autoReplyEnabled = true;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply ON (SEC)");
-        sendAutoReplyState(from);
-    } else if ((strcmp("adar sec+dm", local_payload) == 0 || strcmp("adar sec dm", local_payload) == 0) && isToUs) {
-        autoReplyMode = AutoReplyMode::SEC_DM;
-        autoReplyEnabled = true;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply ON (SEC+DM)");
-        sendAutoReplyState(from);
-    } else if (strcmp("adar toggle", local_payload) == 0 && isToUs) {
-        autoReplyEnabled = !autoReplyEnabled;
-        saveAutoReplyState();
-        LOG_INFO("Admin auto reply %s (%s)", autoReplyEnabled ? "ON" : "OFF", autoReplyModeName(autoReplyMode));
-        sendAutoReplyState(from);
+    } else if (flamingo::adar::handleAdminMessage(local_payload, new_size, isToUs, from, channel, replyId)) {
+        return;
     }
 #ifdef FLAMINGO_CONNECTION_LED
     else if (strncmp("adled default ", local_payload, 14) == 0) {
@@ -412,7 +223,7 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         LOG_INFO("z=%s", textmsg);
     }
     // ADRT commands are accepted only on direct messages; ADLED is accepted on direct and channel messages
-    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp), mp.from);
+    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp), mp.from, mp.id, mp.channel);
 
 #endif
 #else
@@ -427,36 +238,8 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
 
 #ifdef FLAMINGO
     if (mp.which_payload_variant == meshtastic_MeshPacket_decoded_tag &&
-        mp.decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_APP && autoReplyEnabled && mp.from != 0 && !isFromUs(&mp) &&
-        !mp.decoded.emoji) {
-        const bool isDm = !isBroadcast(mp.to);
-        const bool isPrimary = (mp.channel == 0);
-        bool modeAllows = false;
-
-        switch (autoReplyMode) {
-        case AutoReplyMode::ALL:
-            modeAllows = true;
-            break;
-        case AutoReplyMode::PRIM:
-            modeAllows = !isDm && isPrimary;
-            break;
-        case AutoReplyMode::PRIM_DM:
-            modeAllows = isDm || isPrimary;
-            break;
-        case AutoReplyMode::SEC:
-            modeAllows = !isDm && !isPrimary;
-            break;
-        case AutoReplyMode::SEC_DM:
-            modeAllows = isDm || !isPrimary;
-            break;
-        default:
-            modeAllows = true;
-            break;
-        }
-
-        if (modeAllows) {
-            sendAutoReply(mp.from, isBroadcast(mp.to), mp.channel, mp.id);
-        }
+        mp.decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_APP) {
+        flamingo::adar::handleIncomingMessage(mp);
     }
 #endif
 

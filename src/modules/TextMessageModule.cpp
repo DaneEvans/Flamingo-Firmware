@@ -2,18 +2,19 @@
 #include "MeshService.h"
 #include "MessageStore.h"
 #ifdef FLAMINGO
+#include "FlamingoAutoReply.h"
 #include "MeshTypes.h"
-#endif
-#include "NodeDB.h"
-#include "PowerFSM.h"
-#include "buzz.h"
-#include "configuration.h"
-#ifdef FLAMINGO
 #include "RangeTestModule.h"
 #ifdef FLAMINGO_CONNECTION_LED
 #include "BlinkModule.h"
 #endif
 #endif
+#include "FSCommon.h"
+#include "NodeDB.h"
+#include "PowerFSM.h"
+#include "SPILock.h"
+#include "buzz.h"
+#include "configuration.h"
 
 #include "graphics/Screen.h"
 #include "graphics/SharedUIDisplay.h"
@@ -22,9 +23,18 @@
 TextMessageModule *textMessageModule;
 
 #ifdef FLAMINGO
+TextMessageModule::TextMessageModule() : SinglePortModule("text", meshtastic_PortNum_TEXT_MESSAGE_APP)
+{
+    flamingo::adar::loadState();
+}
+#else
+TextMessageModule::TextMessageModule() : SinglePortModule("text", meshtastic_PortNum_TEXT_MESSAGE_APP) {}
+#endif
+
+#ifdef FLAMINGO
 #define MAX_ADMIN_MSG 31
 
-void parseAdmin(pb_size_t size, char *payload, bool isToUs)
+void parseAdmin(pb_size_t size, char *payload, bool isToUs, NodeNum from, uint32_t replyId, uint8_t channel)
 {
     char local_payload[MAX_ADMIN_MSG + 1];
     pb_size_t new_size;
@@ -80,6 +90,8 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs)
             LOG_INFO("Rangetest delay is 60");
             moduleConfig.range_test.sender = 60;
         }
+    } else if (flamingo::adar::handleAdminMessage(local_payload, new_size, isToUs, from, channel, replyId)) {
+        return;
     }
 #ifdef FLAMINGO_CONNECTION_LED
     else if (strncmp("adled default ", local_payload, 14) == 0) {
@@ -155,7 +167,7 @@ void parseAdmin(pb_size_t size, char *payload, bool isToUs)
             }
             if (valid) {
                 if (num == 2 && timeout > 0) {
-                    timeout *= 1000; // Convert seconds to milliseconds
+                    timeout *= 1000;
                     LOG_INFO("Setting Connection LED to %s with timeout %lu seconds", color_str, timeout / 1000);
                     if (blinkModule) {
                         blinkModule->setConnectionLED_cooldown(color, timeout);
@@ -187,12 +199,11 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
      Improve debug messages so that can parsed as part of log at Incident Command
     */
 #if defined(DEBUG_PORT) && !defined(DEBUG_MUTE)
-    auto rssi = mp.rx_rssi;
     auto &p = mp.decoded;
     meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(&mp));
 
-    LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rxSNR=%g, hop_limit=%d, hop_start=%d", mp.from, mp.id,
-             n->user.long_name, mp.rx_snr, mp.hop_limit, mp.hop_start);
+    LOG_INFO("TextModule msg: from=0x%0x, id=0x%x, ln=%s, rssi=%d, rxSNR=%g, hop_limit=%d, hop_start=%d", mp.from, mp.id,
+             n->user.long_name, mp.rx_rssi, mp.rx_snr, mp.hop_limit, mp.hop_start);
     uint16_t offset;
     uint16_t bytes_left = p.payload.size;
     bool do_loop = 1;
@@ -212,7 +223,7 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
         LOG_INFO("z=%s", textmsg);
     }
     // ADRT commands are accepted only on direct messages; ADLED is accepted on direct and channel messages
-    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp));
+    parseAdmin(p.payload.size, (char *)p.payload.bytes, isToUs(&mp), mp.from, mp.id, mp.channel);
 
 #endif
 #else
@@ -224,6 +235,13 @@ ProcessMessage TextMessageModule::handleReceived(const meshtastic_MeshPacket &mp
     // add packet ID to the rolling list of packets
     textPacketList[textPacketListIndex] = mp.id;
     textPacketListIndex = (textPacketListIndex + 1) % TEXT_PACKET_LIST_SIZE;
+
+#ifdef FLAMINGO
+    if (mp.which_payload_variant == meshtastic_MeshPacket_decoded_tag &&
+        mp.decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_APP) {
+        flamingo::adar::handleIncomingMessage(mp);
+    }
+#endif
 
     // We only store/display messages destined for us.
     devicestate.rx_text_message = mp;

@@ -24,9 +24,18 @@ PacketCacheEntry *PacketCache::cache(const meshtastic_MeshPacket *p, bool preser
     e->header.channel = p->channel;
     e->header.next_hop = p->next_hop;
     e->header.relay_node = p->relay_node;
+#ifdef FLAMINGO
+    e->header.flags =
+        0x20 | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) | (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0);
+
+    e->header.hop_limit = p->hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK;
+    e->header.hop_start = p->hop_start & PACKET_FLAGS_HOP_START_MASK;
+    e->header.magicnum = PACKET_HEADER_MAGIC_NUMBER;
+#else
     e->header.flags = (p->hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK) | (p->want_ack ? PACKET_FLAGS_WANT_ACK_MASK : 0) |
                       (p->via_mqtt ? PACKET_FLAGS_VIA_MQTT_MASK : 0) |
                       ((p->hop_start << PACKET_FLAGS_HOP_START_SHIFT) & PACKET_FLAGS_HOP_START_MASK);
+#endif
 
     PacketCacheMetadata m{};
     if (preserveMetadata) {
@@ -171,10 +180,15 @@ void PacketCache::rehydrate(const PacketCacheEntry *e, meshtastic_MeshPacket *p)
     p->channel = e->header.channel;
     p->next_hop = e->header.next_hop;
     p->relay_node = e->header.relay_node;
+#ifdef FLAMINGO
+    p->hop_limit = e->header.hop_limit & PACKET_FLAGS_HOP_LIMIT_MASK ;
+    p->hop_start = e->header.hop_start & PACKET_FLAGS_HOP_START_MASK ;
+#else
     p->hop_limit = e->header.flags & PACKET_FLAGS_HOP_LIMIT_MASK;
+    p->hop_start = (e->header.flags & PACKET_FLAGS_HOP_START_MASK) >> PACKET_FLAGS_HOP_START_SHIFT;
+#endif
     p->want_ack = !!(e->header.flags & PACKET_FLAGS_WANT_ACK_MASK);
     p->via_mqtt = !!(e->header.flags & PACKET_FLAGS_VIA_MQTT_MASK);
-    p->hop_start = (e->header.flags & PACKET_FLAGS_HOP_START_MASK) >> PACKET_FLAGS_HOP_START_SHIFT;
     p->which_payload_variant = e->encrypted ? meshtastic_MeshPacket_encrypted_tag : meshtastic_MeshPacket_decoded_tag;
 
     unsigned char *payload = ((unsigned char *)e) + sizeof(PacketCacheEntry);

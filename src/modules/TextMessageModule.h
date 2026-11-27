@@ -18,7 +18,7 @@ class TextMessageModule : public SinglePortModule, public Observable<const mesht
     /** Constructor
      * name is for debugging output
      */
-    TextMessageModule() : SinglePortModule("text", meshtastic_PortNum_TEXT_MESSAGE_APP) {}
+    TextMessageModule();
 
     bool recentlySeen(uint32_t id);
 
